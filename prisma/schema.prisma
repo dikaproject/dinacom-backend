@@ -1,0 +1,67 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  DOCTOR
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  doctor        Doctor?
+}
+
+model Doctor {
+  id                    String    @id @default(uuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id])
+  fullName              String
+  strNumber            String    @unique
+  sipNumber            String    @unique
+  phoneNumber          String
+  photoProfile         String?
+  documentsProof       String?
+  provinsi             String
+  kabupaten            String
+  kecamatan            String
+  address              String    @db.Text
+  codePos              String
+  layananKesehatanId   String
+  layananKesehatan     LayananKesehatan @relation(fields: [layananKesehatanId], references: [id])
+  educationBackground  String    @db.Text
+  verificationStatus   String    @default("pending")
+  verifiedAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model LayananKesehatan {
+  id          String    @id @default(uuid())
+  name        String
+  type        String
+  noIzin      String    @unique
+  phoneNumber String
+  email       String
+  province    String
+  city        String
+  district    String
+  address     String    @db.Text
+  codePos     String
+  doctors     Doctor[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+}
