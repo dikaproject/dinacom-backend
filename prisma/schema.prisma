@@ -15,53 +15,177 @@ enum Role {
   ADMIN
 }
 
+enum ConsultationStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  CHECKUP_REMINDER
+  CONSULTATION_SCHEDULE
+  DAILY_TIPS
+  SYSTEM
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  EXPIRED
+  FAILED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  QRIS
+  MIDTRANS
+}
+
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
+  id            String           @id @default(uuid())
+  email         String           @unique
   password      String
-  role          Role      @default(USER)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  role          Role             @default(USER)
   doctor        Doctor?
+  profile       PregnantProfile?
+  consultations Consultation[]
+  notifications Notification[]
+  messages      Message[]        @relation("SentMessages")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model PregnantProfile {
+  id               String            @id @default(uuid())
+  userId           String            @unique
+  user             User              @relation(fields: [userId], references: [id])
+  fullName         String
+  dateOfBirth      DateTime
+  phoneNumber      String
+  address          String            @db.Text
+  bloodType        String?
+  height           Float?
+  pregnancyRecords PregnancyRecord[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model PregnancyRecord {
+  id             String          @id @default(uuid())
+  profileId      String
+  profile        PregnantProfile @relation(fields: [profileId], references: [id])
+  checkupDate    DateTime
+  weight         Float
+  bloodPressure  String
+  fetalHeartRate Int?
+  notes          String?         @db.Text
+  nextCheckup    DateTime
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  consultationId  String        @unique
+  consultation    Consultation  @relation(fields: [consultationId], references: [id])
+  amount          Float         // Base amount
+  platformFee     Float         // 5% of amount
+  totalAmount     Float         // amount + platformFee + gatewayFee
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentProof    String?       // For manual payment
+  midtransId      String?       // For Midtrans payment
+  expiredAt       DateTime
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+
+model Consultation {
+  id        String             @id @default(uuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id])
+  doctorId  String
+  doctor    Doctor             @relation(fields: [doctorId], references: [id])
+  schedule  DateTime
+  payment     Payment?
+  status    ConsultationStatus @default(PENDING)
+  notes     String?            @db.Text
+  messages  Message[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  consultationId String
+  consultation   Consultation @relation(fields: [consultationId], references: [id])
+  senderId       String
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
+  content        String       @db.Text
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  title     String
+  message   String           @db.Text
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 }
 
 model Doctor {
-  id                    String    @id @default(uuid())
-  userId                String    @unique
-  user                  User      @relation(fields: [userId], references: [id])
-  fullName              String
-  strNumber            String    @unique
-  sipNumber            String    @unique
-  phoneNumber          String
-  photoProfile         String?
-  documentsProof       String?
-  provinsi             String
-  kabupaten            String
-  kecamatan            String
-  address              String    @db.Text
-  codePos              String
-  layananKesehatanId   String
-  layananKesehatan     LayananKesehatan @relation(fields: [layananKesehatanId], references: [id])
-  educationBackground  String    @db.Text
-  verificationStatus   String    @default("pending")
-  verifiedAt           DateTime?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id                  String           @id @default(uuid())
+  userId              String           @unique
+  user                User             @relation(fields: [userId], references: [id])
+  fullName            String
+  strNumber           String           @unique
+  sipNumber           String           @unique
+  phoneNumber         String
+  photoProfile        String?
+  documentsProof      String?
+  provinsi            String
+  kabupaten           String
+  kecamatan           String
+  address             String           @db.Text
+  codePos             String
+  layananKesehatanId  String
+  layananKesehatan    LayananKesehatan @relation(fields: [layananKesehatanId], references: [id])
+  consultations       Consultation[] // Add this relation
+  educationBackground String           @db.Text
+  verificationStatus  VerificationStatus @default(PENDING)
+  verifiedAt          DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 }
 
 model LayananKesehatan {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   type        String
-  noIzin      String    @unique
+  noIzin      String   @unique
   phoneNumber String
   email       String
   province    String
   city        String
   district    String
-  address     String    @db.Text
+  address     String   @db.Text
   codePos     String
   doctors     Doctor[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now()) @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
 }
