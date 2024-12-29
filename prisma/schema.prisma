@@ -189,3 +189,22 @@ model LayananKesehatan {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
 }
+
+model ArticleCategory {
+  id    String    @id @default(uuid())
+  name  String
+  slug  String @unique
+  articles  Article[]
+}
+
+model Article {
+  id          Int       @id @default(autoincrement())
+  thumbnail   String?
+  title       String
+  content     String
+  slug        String @unique
+  categoryId  String    
+  category    ArticleCategory  @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}

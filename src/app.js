@@ -4,6 +4,7 @@ const authRoutes = require('./routes/auth');
 const layananKesehatanRoutes = require('./routes/LayananKesehatan');
 const VerificationDoctorController = require('./routes/VerificationDoctor');
 const consultationController = require('./routes/consultation');
+const articleCategoryController = require('./routes/articleCategory');
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/layanan-kesehatan', layananKesehatanRoutes);
 app.use('/api/doctor-verification', VerificationDoctorController);
 app.use('/api/consultation', consultationController);
+app.use('/api/article-category', articleCategoryController);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
