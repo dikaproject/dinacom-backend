@@ -258,6 +258,71 @@ const getConsultations = async (req, res) => {
       res.status(500).json({ message: error.message });
     }
   };
+
+  //  start consultation
+  const startConsultation = async (req, res) => {
+    try {
+      const { consultationId } = req.params;
+      const userId = req.user.id;
+  
+      const consultation = await prisma.consultation.findFirst({
+        where: {
+          id: consultationId,
+          status: 'CONFIRMED',
+          OR: [
+            { userId },
+            { doctor: { userId } }
+          ]
+        },
+        include: {
+          payment: true,
+          doctor: true,
+          user: {
+            select: {
+              email: true,
+              profile: true
+            }
+          }
+        }
+      });
+  
+      if (!consultation) {
+        return res.status(404).json({ 
+          message: 'Consultation not found or not confirmed' 
+        });
+      }
+  
+      if (consultation.payment?.paymentStatus !== 'PAID') {
+        return res.status(403).json({ 
+          message: 'Payment must be completed first' 
+        });
+      }
+  
+      // Get chat history
+      const messages = await prisma.message.findMany({
+        where: { consultationId },
+        include: {
+          sender: {
+            select: {
+              email: true,
+              role: true,
+              doctor: { select: { fullName: true } },
+              profile: { select: { fullName: true } }
+            }
+          }
+        },
+        orderBy: { createdAt: 'asc' }
+      });
+  
+      res.json({
+        consultation,
+        messages,
+        chatEnabled: true
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
   
   module.exports = {
     createConsultation,
@@ -266,5 +331,6 @@ const getConsultations = async (req, res) => {
     updateConsultation,
     deleteConsultation,
     getAllConsultationsByDoctor,
-    getAllConsultationsAdmin
+    getAllConsultationsAdmin,
+    startConsultation
   };

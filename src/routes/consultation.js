@@ -17,4 +17,6 @@ router.get('/admin', authMiddleware, checkRole(['ADMIN']), getAllConsultationsAd
 router.get('/:id', authMiddleware, getConsultationById);
 router.put('/:id', authMiddleware, checkRole(['DOCTOR']), updateConsultation);
 
+
+
 module.exports = router;

@@ -166,6 +166,7 @@ model Doctor {
   layananKesehatanId  String
   layananKesehatan    LayananKesehatan @relation(fields: [layananKesehatanId], references: [id])
   consultations       Consultation[] // Add this relation
+  consultationFee  Float           @default(150000)
   educationBackground String           @db.Text
   verificationStatus  VerificationStatus @default(PENDING)
   verifiedAt          DateTime?
