@@ -3,8 +3,12 @@ const prisma = new PrismaClient();
 
 const getAllArticle = async (req, res) => {
     try {
-        const Article = await prisma.Article.findMany();
-        res.json(Article);
+        const articles = await prisma.article.findMany({
+            include: {
+                categories: true, 
+            },
+        });
+        res.json(articles);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -13,13 +17,16 @@ const getAllArticle = async (req, res) => {
 const getArticleById = async (req, res) => {
     try {
         const { id } = req.params;
-        const Article = await prisma.Article.findUnique({
+        const article = await prisma.article.findUnique({
             where: { id },
+            include: {
+                categories: true, 
+            },
         });
-        if (!Article) {
+        if (!article) {
             return res.status(404).json({ message: 'Article not found' });
         }
-        res.json(Article);
+        res.json(article);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -27,22 +34,19 @@ const getArticleById = async (req, res) => {
 
 const createArticle = async (req, res) => {
     try {
-        const { name, slug } = req.body;
-        const Article = await prisma.article.create({
+        const { thumbnail, title, content, slug, categories } = req.body;
+        const article = await prisma.article.create({
             data: {
-                name,
-                slug,
                 thumbnail,
                 title,
                 content,
-                categoryId: categoryId,
-                slug        
+                slug,
+                categories: {
+                    connect: categories.map(category => ({ slug: category.slug })),
+                },
             },
-            include: {
-                category: true,
-              }
         });
-        res.status(201).json(Article);
+        res.status(201).json(article);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -51,11 +55,29 @@ const createArticle = async (req, res) => {
 const updateArticle = async (req, res) => {
     try {
         const { id } = req.params;
-        const Article = await prisma.article.update({
-            where: { id },
-            data: req.body
+        const { thumbnail, title, content, slug, categories } = req.body;
+
+        const existingArticle = await prisma.article.findUnique({
+            where: { slug },
         });
-        res.json(Article);
+
+        if (existingArticle && existingArticle.id !== id) {
+            return res.status(400).json({ message: 'Slug sudah digunakan oleh artikel lain.' });
+        }
+
+        const article = await prisma.article.update({
+            where: { id },
+            data: {
+                thumbnail,
+                title,
+                content,
+                slug,
+                categories: {
+                    connect: categories.map(category => ({ slug: category.slug })),
+                },
+            },
+        });
+        res.json(article);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -65,9 +87,9 @@ const deleteArticle = async (req, res) => {
     try {
         const { id } = req.params;
         await prisma.article.delete({
-            where: { id }
+            where: { id },
         });
-        res.json({ message: 'Article  deleted successfully' });
+        res.json({ message: 'Article deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -78,5 +100,5 @@ module.exports = {
     getArticleById,
     createArticle,
     updateArticle,
-    deleteArticle
+    deleteArticle,
 };
