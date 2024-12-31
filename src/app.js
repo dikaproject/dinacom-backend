@@ -15,6 +15,7 @@ const articleCategoryRoutes = require('./routes/articleCategory');
 const articleRoutes = require('./routes/article');
 const paymentRoutes = require('./routes/payment');
 const messageRoutes = require('./routes/message');
+const communityRoutes = require('./routes/community');
 
 const app = express();
 const httpServer = createServer(app);
@@ -41,6 +42,7 @@ app.use('/api/article-category', articleCategoryRoutes);
 app.use('/api/article', articleRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/community', communityRoutes);
 
 // Socket.IO
 io.on('connection', (socket) => {
