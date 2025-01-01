@@ -1,55 +1,51 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-const getAllMessagesByCommunityId = async (req, res) => {
+const getChatCommunity = async (req, res) => {
     try {
-        const { communityId } = req.params;
-        const messages = await prisma.message.findMany({
-            where: { communityId },
+        const chats = await prisma.chatCommunity.findMany({
             include: {
-                sender: { select: { name: true, email: true } },
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                    },
+                },
             },
             orderBy: { createdAt: 'asc' },
         });
-        res.json(messages);
+
+        res.json(chats);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
-const createMessage = async (req, res) => {
+const sendChatCommunity = async (req, res) => {
     try {
-        const { communityId, senderId, content } = req.body;
-        const message = await prisma.message.create({
+        const { message } = req.body;
+        const userId = req.user.id;
+
+        const newMessage = await prisma.chatCommunity.create({
             data: {
-                communityId,
-                senderId,
-                content,
+              userId,
+              message,
             },
             include: {
-                sender: { select: { name: true, email: true } },
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                },
+              },
             },
-        });
-        res.status(201).json(message);
+          });
+          
+
+        res.status(201).json(newMessage);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
-const deleteMessage = async (req, res) => {
-    try {
-        const { id } = req.params;
-        await prisma.message.delete({
-            where: { id },
-        });
-        res.json({ message: 'Message deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-module.exports = {
-    getAllMessagesByCommunityId,
-    createMessage,
-    deleteMessage,
-};
+module.exports = { getChatCommunity, sendChatCommunity };
