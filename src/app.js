@@ -2,7 +2,8 @@ const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const { PrismaClient } = require('@prisma/client'); 
+const path = require('path');
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const authRoutes = require('./routes/auth');
@@ -13,7 +14,11 @@ const articleCategoryRoutes = require('./routes/articleCategory');
 const articleRoutes = require('./routes/article');
 const paymentRoutes = require('./routes/payment');
 const messageRoutes = require('./routes/message');
+const pregnancyRoutes = require('./routes/pregnancy');
 const communityChatRoutes = require('./routes/comunityChat');
+const { setupCronJobs } = require('./utils/cron');
+
+
 
 const productCategoryRoutes = require('./routes/productCategory');
 const productRoutes = require('./routes/product');
@@ -41,10 +46,13 @@ app.use('/api/article-category', articleCategoryRoutes);
 app.use('/api/article', articleRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/pregnancy', pregnancyRoutes);
 app.use('/api/community', communityChatRoutes);
 
 app.use('/api/product-category', productCategoryRoutes);
 app.use('/api/product', productRoutes);
+setupCronJobs();
+
 
 // Socket.IO for Consultation Chat
 io.on('connection', (socket) => {
