@@ -63,6 +63,7 @@ model User {
   profile       PregnantProfile?
   consultations Consultation[]
   notifications Notification[]
+  chats         ChatCommunity[] 
   messages      Message[]        @relation("SentMessages")
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -263,4 +264,30 @@ model LayananKesehatan {
   doctors     Doctor[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
+}
+
+model ArticleCategory {
+  id         String     @id @default(uuid())
+  name       String
+  slug       String     @unique
+  articles   Article[]  @relation("ArticleCategories")
+}
+
+model Article {
+  id          String              @id @default(uuid())
+  thumbnail   String?
+  title       String
+  content     String
+  slug        String              @unique
+  categories  ArticleCategory[]   @relation("ArticleCategories")
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model ChatCommunity {
+  id          String     @id @default(uuid())
+  message     String
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  createdAt   DateTime   @default(now())
 }
