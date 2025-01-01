@@ -1,34 +1,34 @@
-/*
-  Warnings:
+-- CreateTable
+CREATE TABLE `Community` (
+    `id` VARCHAR(191) NOT NULL,
+    `title` VARCHAR(191) NOT NULL,
+    `slug` VARCHAR(191) NOT NULL,
+    `description` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
 
-  - You are about to drop the `chat` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `community` table. If the table is not empty, all the data it contains will be lost.
-
-*/
--- DropForeignKey
-ALTER TABLE `chat` DROP FOREIGN KEY `Chat_communityId_fkey`;
-
--- DropForeignKey
-ALTER TABLE `chat` DROP FOREIGN KEY `Chat_userId_fkey`;
-
--- DropForeignKey
-ALTER TABLE `community` DROP FOREIGN KEY `Community_userId_fkey`;
-
--- DropTable
-DROP TABLE `chat`;
-
--- DropTable
-DROP TABLE `community`;
+    UNIQUE INDEX `Community_slug_key`(`slug`),
+    UNIQUE INDEX `Community_userId_key`(`userId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `ChatCommunity` (
+CREATE TABLE `Chat` (
     `id` VARCHAR(191) NOT NULL,
     `message` VARCHAR(191) NOT NULL,
     `userId` VARCHAR(191) NOT NULL,
+    `communityId` VARCHAR(191) NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE `ChatCommunity` ADD CONSTRAINT `ChatCommunity_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `Community` ADD CONSTRAINT `Community_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Chat` ADD CONSTRAINT `Chat_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Chat` ADD CONSTRAINT `Chat_communityId_fkey` FOREIGN KEY (`communityId`) REFERENCES `Community`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

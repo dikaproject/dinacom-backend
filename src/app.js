@@ -15,6 +15,9 @@ const paymentRoutes = require('./routes/payment');
 const messageRoutes = require('./routes/message');
 const communityChatRoutes = require('./routes/comunityChat');
 
+const productCategoryRoutes = require('./routes/productCategory');
+const productRoutes = require('./routes/product');
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -39,6 +42,9 @@ app.use('/api/article', articleRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/community', communityChatRoutes);
+
+app.use('/api/product-category', productCategoryRoutes);
+app.use('/api/product', productRoutes);
 
 // Socket.IO for Consultation Chat
 io.on('connection', (socket) => {

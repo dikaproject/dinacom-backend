@@ -48,6 +48,11 @@ enum PaymentMethod {
   MIDTRANS
 }
 
+enum ProductStatus {
+  ACTIVE
+  UNACTIVE
+}
+
 model User {
   id            String           @id @default(uuid())
   email         String           @unique
@@ -216,4 +221,25 @@ model ChatCommunity {
   userId      String
   user        User       @relation(fields: [userId], references: [id])
   createdAt   DateTime   @default(now())
+}
+
+model ProductCategory {
+  id         String    @id @default(uuid())
+  name       String
+  slug       String    @unique
+  products   Product[] 
+}
+
+model Product {
+  id              String            @id @default(uuid())
+  thumbnail       String?
+  title           String
+  slug            String            @unique
+  description     String
+  productStatus   ProductStatus     @default(ACTIVE)
+  price           Float
+  categoryId      String
+  category        ProductCategory   @relation(fields: [categoryId], references: [id]) 
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
