@@ -3,6 +3,8 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -11,6 +13,8 @@ const doctorVerificationRoutes = require('./routes/VerificationDoctor');
 const layananKesehatanRoutes = require('./routes/LayananKesehatan');
 const paymentRoutes = require('./routes/payment');
 const messageRoutes = require('./routes/message');
+const pregnancyRoutes = require('./routes/pregnancy');
+const { setupCronJobs } = require('./utils/cron');
 
 const app = express();
 const httpServer = createServer(app);
@@ -33,6 +37,9 @@ app.use('/api/doctor-verification', doctorVerificationRoutes);
 app.use('/api/layanan-kesehatan', layananKesehatanRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/pregnancy', pregnancyRoutes);
+
+setupCronJobs();
 
 // Socket.IO
 io.on('connection', (socket) => {

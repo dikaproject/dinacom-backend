@@ -4,6 +4,7 @@ const { register, registerDoctor, login } = require('../controllers/authControll
 const { authMiddleware, checkRole } = require('../middleware/auth');
 const { documentsUpload, profileUpload } = require('../middleware/upload');
 
+
 // Use multiple single uploads instead of fields
 router.post('/register', register);
 

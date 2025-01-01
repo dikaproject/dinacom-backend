@@ -48,6 +48,12 @@ enum PaymentMethod {
   MIDTRANS
 }
 
+enum PregnancyWeek {
+  FIRST_TRIMESTER    // 1-12 weeks
+  SECOND_TRIMESTER   // 13-26 weeks
+  THIRD_TRIMESTER    // 27-40 weeks
+}
+
 model User {
   id            String           @id @default(uuid())
   email         String           @unique
@@ -69,9 +75,18 @@ model PregnantProfile {
   fullName         String
   dateOfBirth      DateTime
   phoneNumber      String
+  reminderTime     DateTime        // Preferred daily reminder time
+  isWhatsappActive Boolean         @default(true)
   address          String            @db.Text
   bloodType        String?
   height           Float?
+  dueDate           DateTime
+  pregnancyWeek     Int
+  trimester         PregnancyWeek
+  dailyCheckups     DailyCheckup[]
+  nutritionLogs     NutritionLog[]
+  exerciseLogs      ExerciseLog[]
+  aiRecommendations AIRecommendation[]
   pregnancyRecords PregnancyRecord[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -89,6 +104,65 @@ model PregnancyRecord {
   nextCheckup    DateTime
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+}
+
+model DailyCheckup {
+  id              String          @id @default(uuid())
+  profileId       String
+  profile         PregnantProfile @relation(fields: [profileId], references: [id])
+  date            DateTime
+  weight          Float
+  bloodPressure   String
+  mood            String
+  sleepHours      Float
+  waterIntake     Float           // in liters
+  symptoms        Json            // Changed from String[] to Json
+  notes           String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+model NutritionLog {
+  id              String          @id @default(uuid())
+  profileId       String
+  profile         PregnantProfile @relation(fields: [profileId], references: [id])
+  date            DateTime
+  mealType        String         // breakfast, lunch, dinner, snack
+  foodItems       Json           // array of food items with nutrients
+  totalCalories   Float
+  totalProtein    Float
+  totalCarbs      Float
+  totalFat        Float
+  totalFolate     Float
+  totalIron       Float
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model ExerciseLog {
+  id              String          @id @default(uuid())
+  profileId       String
+  profile         PregnantProfile @relation(fields: [profileId], references: [id])
+  date            DateTime
+  activityType    String
+  duration        Int            // in minutes
+  intensity       String         // low, moderate
+  heartRate       Int?
+  notes           String?        @db.Text
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model AIRecommendation {
+  id              String          @id @default(uuid())
+  profileId       String
+  profile         PregnantProfile @relation(fields: [profileId], references: [id])
+  type            String         // nutrition, exercise, health
+  week            Int
+  trimester       PregnancyWeek
+  recommendation  Json
+  analysis        String         @db.Text
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 }
 
 model Payment {
@@ -174,7 +248,7 @@ model Doctor {
   updatedAt           DateTime         @updatedAt
 }
 
-model LayananKesehatan {
+model LayananKesehatan { 
   id          String   @id @default(uuid())
   name        String
   type        String
