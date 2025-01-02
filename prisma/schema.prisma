@@ -53,6 +53,13 @@ enum ProductStatus {
   UNACTIVE
 }
 
+enum TransactionStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+
 enum PregnancyWeek {
   FIRST_TRIMESTER    // 1-12 weeks
   SECOND_TRIMESTER   // 13-26 weeks
@@ -70,6 +77,8 @@ model User {
   notifications Notification[]
   chats         ChatCommunity[] 
   messages      Message[]        @relation("SentMessages")
+  cartProducts  CartProduct[] 
+  transactions  Transaction[] 
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 }
@@ -314,6 +323,33 @@ model Product {
   price           Float
   categoryId      String
   category        ProductCategory   @relation(fields: [categoryId], references: [id]) 
+  cartProduct     CartProduct[] 
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+}
+
+model CartProduct {
+  id          String    @id @default(uuid())
+  productId   String
+  product     Product    @relation(fields: [productId], references: [id])
+  quantity    Int        @default(1)
+  userId      String
+  user        User       @relation(fields: [userId], references: [id]) 
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+   
+  @@unique([productId, userId])
+}
+
+model Transaction {
+  id                  String          @id @default(uuid())
+  orderId             String          @unique
+  userId              String
+  user                User            @relation(fields: [userId], references: [id])
+  transactionStatus   TransactionStatus     @default(PENDING)
+  totalAmount         Float
+  midtransId          String?       // For Midtrans payment
+  paidAt              DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 }

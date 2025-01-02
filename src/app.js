@@ -22,6 +22,7 @@ const { setupCronJobs } = require('./utils/cron');
 
 const productCategoryRoutes = require('./routes/productCategory');
 const productRoutes = require('./routes/product');
+const cartProductRoutes = require('./routes/cart')
 
 const app = express();
 const httpServer = createServer(app);
@@ -51,6 +52,7 @@ app.use('/api/community', communityChatRoutes);
 
 app.use('/api/product-category', productCategoryRoutes);
 app.use('/api/product', productRoutes);
+app.use('/api/cart', cartProductRoutes);
 setupCronJobs();
 
 

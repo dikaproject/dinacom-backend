@@ -3,21 +3,38 @@ const prisma = new PrismaClient();
 
 const getAllProduct = async (req, res) => {
     try {
+        const { minPrice, maxPrice, categoryId } = req.query;
+
+        const filters = {};
+
+        if (minPrice || maxPrice) {
+            filters.price = {};
+            if (minPrice) filters.price.gte = parseFloat(minPrice); 
+            if (maxPrice) filters.price.lte = parseFloat(maxPrice);
+        }
+
+        if (categoryId) {
+            filters.categoryId = categoryId; 
+        }
+
         const products = await prisma.product.findMany({
-            include: { category: true }, 
+            where: filters,
+            include: { category: true },
         });
+
         res.json(products);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
+
 const getProductById = async (req, res) => {
     try {
         const { id } = req.params;
         const product = await prisma.product.findUnique({
             where: { id },
-            include: { category: true }, // Include related category
+            include: { category: true }, 
         });
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
@@ -48,7 +65,7 @@ const createProduct = async (req, res) => {
                 slug: generatedSlug,
                 description,
                 price,
-                category: { connect: { id: categoryId } }, // Directly connect to category by ID
+                category: { connect: { id: categoryId } }, 
             },
         });
         res.status(201).json({ message: 'Product created successfully.', product });
