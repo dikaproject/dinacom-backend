@@ -6,12 +6,37 @@ const createDailyCheckup = async (req, res) => {
     const { weight, bloodPressure, mood, sleepHours, waterIntake, symptoms, notes } = req.body;
     const userId = req.user.id;
 
+    if (!weight || !mood || !sleepHours || !waterIntake) {
+      return res.status(400).json({ 
+        message: 'Weight, mood, sleep hours, and water intake are required' 
+      });
+    }
+
     const profile = await prisma.pregnantProfile.findUnique({
       where: { userId }
     });
 
     if (!profile) {
       return res.status(404).json({ message: 'Pregnant profile not found' });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const existingCheckup = await prisma.dailyCheckup.findFirst({
+      where: {
+        profileId: profile.id,
+        date: {
+          gte: today,
+          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+        }
+      }
+    });
+
+    if (existingCheckup) {
+      return res.status(400).json({ 
+        message: 'You have already submitted today\'s checkup' 
+      });
     }
 
     const checkup = await prisma.dailyCheckup.create({

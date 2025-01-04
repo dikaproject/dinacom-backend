@@ -16,18 +16,21 @@ const sendWhatsAppMessage = async (phoneNumber, message) => {
         'Authorization': process.env.FONNTE_TOKEN,
         ...formData.getHeaders()
       },
-      data: formData
+      data: formData,
+      timeout: 10000, // 10 seconds timeout
+      validateStatus: function (status) {
+        return status >= 200 && status < 500;
+      }
     });
 
     console.log('Fonnte Response:', response.data);
-
-    if (response.data.status !== true) {
-      throw new Error(response.data.reason || 'WhatsApp send failed');
-    }
-
     return response.data;
   } catch (error) {
-    console.error('WhatsApp send error:', error.response?.data || error.message);
+    console.error('WhatsApp send error:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data
+    });
     throw error;
   }
 };
