@@ -48,6 +48,18 @@ enum PaymentMethod {
   MIDTRANS
 }
 
+enum ProductStatus {
+  ACTIVE
+  UNACTIVE
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+
 enum PregnancyWeek {
   FIRST_TRIMESTER    // 1-12 weeks
   SECOND_TRIMESTER   // 13-26 weeks
@@ -65,6 +77,8 @@ model User {
   notifications Notification[]
   chats         ChatCommunity[] 
   messages      Message[]        @relation("SentMessages")
+  cartProducts  CartProduct[] 
+  transactions  Transaction[] 
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 }
@@ -292,4 +306,52 @@ model ChatCommunity {
   userId      String
   user        User       @relation(fields: [userId], references: [id])
   createdAt   DateTime   @default(now())
+}
+
+model ProductCategory {
+  id         String    @id @default(uuid())
+  name       String
+  slug       String    @unique
+  products   Product[] 
+}
+
+model Product {
+  id              String            @id @default(uuid())
+  thumbnail       String?
+  title           String
+  slug            String            @unique
+  description     String
+  productStatus   ProductStatus     @default(ACTIVE)
+  price           Float
+  categoryId      String
+  category        ProductCategory   @relation(fields: [categoryId], references: [id]) 
+  cartProduct     CartProduct[] 
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model CartProduct {
+  id          String    @id @default(uuid())
+  productId   String
+  product     Product    @relation(fields: [productId], references: [id])
+  quantity    Int        @default(1)
+  userId      String
+  user        User       @relation(fields: [userId], references: [id]) 
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+   
+  @@unique([productId, userId])
+}
+
+model Transaction {
+  id                  String          @id @default(uuid())
+  orderId             String          @unique
+  userId              String
+  user                User            @relation(fields: [userId], references: [id])
+  transactionStatus   TransactionStatus     @default(PENDING)
+  totalAmount         Float
+  midtransId          String?       // For Midtrans payment
+  paidAt              DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 }
