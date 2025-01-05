@@ -1,9 +1,8 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-
 const cartSeeder = async () => {
-    console.log('Seeding CartProduct data...');
+    console.log('Seeding Cart and CartProduct data...');
 
     const users = await prisma.user.findMany();
     if (users.length === 0) {
@@ -17,24 +16,34 @@ const cartSeeder = async () => {
 
     console.log(`Found ${users.length} users and ${products.length} products.`);
 
-    // Tambahkan produk ke keranjang untuk setiap pengguna
+    // Tambahkan keranjang dan produk untuk setiap pengguna
     for (const user of users) {
-        console.log(`Adding cart items for user: ${user.email}`);
+        console.log(`Creating cart for user: ${user.email}`);
 
-        for (const product of products.slice(0, 2)) { 
-            const cartProduct = await prisma.cartProduct.create({
+        // Buat cart untuk pengguna
+        const cart = await prisma.cart.create({
+            data: {
+                userId: user.id,
+            },
+        });
+
+        console.log(`Cart created for user: ${user.email}`);
+
+        // Tambahkan beberapa produk ke cart
+        for (const product of products.slice(0, 3)) { // Ambil 3 produk pertama
+            await prisma.cartProduct.create({
                 data: {
+                    cartId: cart.id,
                     productId: product.id,
-                    userId: user.id,
-                    quantity: Math.floor(Math.random() * 5) + 1, 
+                    quantity: Math.floor(Math.random() * 5) + 1, // Jumlah acak 1-5
                 },
             });
-
         }
+
+        console.log(`Added products to cart for user: ${user.email}`);
     }
 
     console.log('Seeding completed.');
-
 };
 
 module.exports = cartSeeder;

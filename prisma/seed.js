@@ -21,7 +21,7 @@ const main = async () => {
     // await doctorSeeder();
     await productCategorySeeder();
     await productSeeder();
-    await cartSeeder();
+    // await cartSeeder();
     console.log('Seeding completed!');
   } catch (error) {
     console.error('Seeding failed:', error);

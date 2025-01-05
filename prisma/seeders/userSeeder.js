@@ -14,6 +14,11 @@ const userSeeder = async () => {
             role: 'USER',
         },
         {
+            email: 'sofwannuhaalfaruq@gmail.com',
+            password: 'password123',
+            role: 'USER',
+        },
+        {
             email: 'doctor@gmail.com',
             password: 'password123',
             role: 'DOCTOR',
