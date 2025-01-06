@@ -139,20 +139,19 @@ model DailyCheckup {
   updatedAt       DateTime        @updatedAt
 }
 model NutritionLog {
-  id              String          @id @default(uuid())
-  profileId       String
-  profile         PregnantProfile @relation(fields: [profileId], references: [id])
-  date            DateTime
-  mealType        String         // breakfast, lunch, dinner, snack
-  foodItems       Json           // array of food items with nutrients
-  totalCalories   Float
-  totalProtein    Float
-  totalCarbs      Float
-  totalFat        Float
-  totalFolate     Float
-  totalIron       Float
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id          String          @id @default(uuid())
+  profileId   String
+  profile     PregnantProfile @relation(fields: [profileId], references: [id])
+  date        DateTime
+  mealType    String         // breakfast, lunch, dinner, snack
+  foodItems   Json           // array of food items
+  calories    Float
+  protein     Float
+  carbs       Float
+  fats        Float
+  notes       String?        @db.Text
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
 
 model ExerciseLog {
