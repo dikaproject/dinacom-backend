@@ -22,7 +22,6 @@ const getCartProducts = async (req, res) => {
 
         res.json(cartProducts);
     } catch (error) {
-        console.error('Error fetching cart products:', error);
         res.status(500).json({ error: 'Failed to fetch cart products' });
     }
 };
@@ -62,7 +61,6 @@ const addCartProduct = async (req, res) => {
 
         res.status(201).json(cartProduct);
     } catch (error) {
-        console.error('Error adding product to cart:', error.message, error.stack);
         res.status(500).json({ error: 'Failed to add product to cart' });
     }
 };
@@ -76,9 +74,6 @@ const updateCartProduct = async (req, res) => {
         if (!id || quantity === undefined) {
             return res.status(400).json({ error: 'Cart Product ID and quantity are required' });
         }
-
-        // Log untuk debug
-        console.log('ID:', id, 'Quantity:', quantity);
 
         if (quantity === 0) {
             await prisma.cartProduct.delete({
@@ -123,7 +118,6 @@ const deleteCartProduct = async (req, res) => {
             deletedProduct,
         });
     } catch (error) {
-        console.error('Error deleting cart product:', error);
         if (error.code === 'P2025') {
             return res.status(404).json({ error: 'Cart Product not found' });
         }

@@ -8,6 +8,7 @@ const doctorSeeder = require('./seeders/doctorSeeder');
 const productCategorySeeder = require('./seeders/productCategorySeeder');
 const productSeeder = require('./seeders/productSeeder');
 const cartSeeder = require('./seeders/cartSeeder');
+const transactionSeeder = require('./seeders/transactionSeeder');
 
 const prisma = new PrismaClient();
 
@@ -22,6 +23,7 @@ const main = async () => {
     await productCategorySeeder();
     await productSeeder();
     // await cartSeeder();
+    await transactionSeeder();
     console.log('Seeding completed!');
   } catch (error) {
     console.error('Seeding failed:', error);
