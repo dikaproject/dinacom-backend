@@ -4,19 +4,39 @@ const prisma = new PrismaClient();
 const calculatePregnancyWeek = (dueDate) => {
   const today = new Date();
   const due = new Date(dueDate);
+
+  // Start of pregnancy (40 weeks before due date)
   const pregnancyStart = new Date(due);
-  pregnancyStart.setDate(due.getDate() - 280); // 40 weeks backwards
-  
-  const diffTime = Math.abs(today - pregnancyStart);
-  const diffWeeks = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7));
-  
-  return Math.min(diffWeeks, 40); // Cap at 40 weeks
+  pregnancyStart.setDate(due.getDate() - (40 * 7));
+
+  // Hitung selisih minggu dari 'start kehamilan' sampai 'hari ini'
+  const diffTime = today.getTime() - pregnancyStart.getTime();
+  const currentWeek = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+
+  // Batas di kisaran 1-40 minggu
+  return Math.min(Math.max(1, currentWeek), 40);
 };
+
+function parseTime(timeString) {
+  // Set to Jakarta timezone
+  const date = new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"});
+  const [hour, minute] = timeString.split(':');
+  const dateObj = new Date(date);
+  dateObj.setHours(parseInt(hour, 10), parseInt(minute, 10), 0, 0);
+  return dateObj;
+}
 
 const determinePregnancyWeek = (weekNumber) => {
   if (weekNumber <= 12) return 'FIRST_TRIMESTER';
   if (weekNumber <= 26) return 'SECOND_TRIMESTER';
   return 'THIRD_TRIMESTER';
+};
+
+const calculateDueDate = (startDate) => {
+  const start = new Date(startDate);
+  const dueDate = new Date(start);
+  dueDate.setMonth(start.getMonth() + 9); // Add 9 months
+  return dueDate;
 };
 
 const createProfile = async (req, res) => {
@@ -29,42 +49,28 @@ const createProfile = async (req, res) => {
       address,
       bloodType,
       height,
-      dueDate,
+      pregnancyStartDate, // Changed from dueDate
     } = req.body;
 
-    // Validate required fields
-    const requiredFields = [
-      'fullName',
-      'dateOfBirth',
-      'phoneNumber',
-      'reminderTime',
-      'address',
-      'dueDate'
-    ];
-
-    const missingFields = requiredFields.filter(field => !req.body[field]);
-    if (missingFields.length > 0) {
-      return res.status(400).json({
-        message: `Missing required fields: ${missingFields.join(', ')}`
-      });
-    }
-
-    // Calculate pregnancy week and trimester
+    // Calculate due date from start date
+    const dueDate = calculateDueDate(pregnancyStartDate);
+    
+    // Calculate pregnancy week
     const pregnancyWeek = calculatePregnancyWeek(dueDate);
     const trimester = determinePregnancyWeek(pregnancyWeek);
 
-    // Create profile
     const profile = await prisma.pregnantProfile.create({
       data: {
-        userId: req.user.id, // From auth middleware
+        userId: req.user.id,
         fullName,
         dateOfBirth: new Date(dateOfBirth),
         phoneNumber,
-        reminderTime: new Date(reminderTime),
+        reminderTime: parseTime(reminderTime),
         address,
         bloodType,
         height: height ? parseFloat(height) : null,
-        dueDate: new Date(dueDate),
+        dueDate, // Save calculated due date
+        pregnancyStartDate: new Date(pregnancyStartDate),
         pregnancyWeek,
         trimester,
       },
@@ -89,6 +95,32 @@ const createProfile = async (req, res) => {
   }
 };
 
+const getProfile = async (req, res) => {
+  try {
+    const profile = await prisma.pregnantProfile.findUnique({
+      where: { userId: req.user.id },
+      include: {
+        user: {
+          select: {
+            email: true,
+            role: true,
+          }
+        }
+      }
+    });
+
+    if (!profile) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+
+    res.json({ profile });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
-  createProfile
+  createProfile,
+  getProfile
 };

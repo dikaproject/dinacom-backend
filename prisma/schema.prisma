@@ -90,10 +90,12 @@ model PregnantProfile {
   dateOfBirth      DateTime
   phoneNumber      String
   reminderTime     DateTime        // Preferred daily reminder time
+  lastReminderSent DateTime?
   isWhatsappActive Boolean         @default(true)
   address          String            @db.Text
   bloodType        String?
   height           Float?
+  pregnancyStartDate DateTime
   dueDate           DateTime
   pregnancyWeek     Int
   trimester         PregnancyWeek
@@ -126,11 +128,11 @@ model DailyCheckup {
   profile         PregnantProfile @relation(fields: [profileId], references: [id])
   date            DateTime
   weight          Float
-  bloodPressure   String
+  bloodPressure   String?
   mood            String
   sleepHours      Float
   waterIntake     Float           // in liters
-  symptoms        Json            // Changed from String[] to Json
+  symptoms        Json?            // Changed from String[] to Json
   notes           String?         @db.Text
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt

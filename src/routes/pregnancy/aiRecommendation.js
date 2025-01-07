@@ -1,15 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware } = require('../../middleware/auth');
+const { authMiddleware, checkRole } = require('../../middleware/auth');
 const { analyzeHealthData } = require('../../controllers/pregnancy/aiRecommendationController');
 
-router.post('/analyze', authMiddleware, async (req, res) => {
-  try {
-    const analysis = await analyzeHealthData(req.body);
-    res.json({ analysis });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+// Ensure user is authenticated and has USER role
+router.post('/analyze', 
+  authMiddleware, 
+  checkRole(['USER']), 
+  analyzeHealthData
+);
 
 module.exports = router;

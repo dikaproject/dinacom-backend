@@ -7,9 +7,10 @@ const exerciseRoutes = require('./pregnancy/exercise');
 const aiRecommendationRoutes = require('./pregnancy/aiRecommendation');
 const reminderRoutes = require('./whatsapp/reminder');
 const { authMiddleware, checkRole } = require('../middleware/auth');
-const { createProfile } = require('../controllers/pregnancyProfileController');
+const { createProfile, getProfile } = require('../controllers/pregnancyProfileController');
 
 router.post('/profile', authMiddleware, checkRole(['USER']), createProfile);
+router.get('/profile', authMiddleware, checkRole(['USER']), getProfile);
 
 router.use('/daily-checkup', dailyCheckupRoutes);
 router.use('/nutrition', nutritionRoutes);
