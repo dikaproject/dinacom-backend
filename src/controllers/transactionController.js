@@ -5,19 +5,13 @@ const snap = require('../utils/midtrans');
 const createTransaction = async (req, res) => {
     try {
         const { cartId } = req.body;
-        const userId = req.user.id; // Diasumsikan user diambil dari middleware auth
+        const userId = req.user.id;
 
-        // Ambil data cart beserta produk dan kuantitasnya
         const cart = await prisma.cart.findFirst({
-            where: {
-                id: cartId,
-                userId,
-            },
+            where: { id: cartId, userId },
             include: {
                 cartProducts: {
-                    include: {
-                        product: true,
-                    },
+                    include: { product: true },
                 },
             },
         });
@@ -26,12 +20,10 @@ const createTransaction = async (req, res) => {
             return res.status(404).json({ message: 'Cart tidak ditemukan atau kosong' });
         }
 
-        // Hitung total harga
         const totalPrice = cart.cartProducts.reduce((sum, cartProduct) => {
             return sum + cartProduct.quantity * cartProduct.product.price;
         }, 0);
 
-        // Buat data transaksi di database
         const transaction = await prisma.transaction.create({
             data: {
                 userId,
@@ -41,7 +33,6 @@ const createTransaction = async (req, res) => {
             },
         });
 
-        // Detail produk untuk Midtrans
         const itemDetails = cart.cartProducts.map((cartProduct) => ({
             id: cartProduct.product.id,
             price: Math.round(cartProduct.product.price),
@@ -49,17 +40,20 @@ const createTransaction = async (req, res) => {
             name: cartProduct.product.title,
         }));
 
-        // Buat transaksi di Midtrans
         const midtransTransaction = await snap.createTransaction({
             transaction_details: {
                 order_id: transaction.id,
                 gross_amount: Math.round(totalPrice),
             },
             customer_details: {
-                first_name: req.user.name, // Pastikan middleware mengisi nama
-                email: req.user.email, // Pastikan middleware mengisi email
+                first_name: req.user.name,
+                email: req.user.email,
             },
             item_details: itemDetails,
+        });
+
+        await prisma.cartProduct.deleteMany({
+            where: { cartId },
         });
 
         res.status(201).json({
@@ -74,7 +68,6 @@ const createTransaction = async (req, res) => {
         res.status(500).json({ message: 'Terjadi kesalahan saat membuat transaksi' });
     }
 };
-
 const handleMidtransNotification = async (req, res) => {
     try {
         const notification = await snap.transaction.notification(req.body);
@@ -160,6 +153,31 @@ const getTransactionById = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+const getHistoryTransaction = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const transactions = await prisma.transaction.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                cart: {
+                    include: {
+                        cartProducts: {
+                            include: {
+                                product: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        res.status(200).json({ success: true, transactions });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Terjadi kesalahan', error });
+    }
+}
 
 module.exports = {
     getTransaction,
