@@ -52,8 +52,22 @@ const paymentUpload = multer({
   fileFilter: documentFilter
 });
 
+const thumbnailArticleUpload = multer({
+  storage: createStorage('article'),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: documentFilter
+});
+
+const productUpload = multer({
+  storage: createStorage('product'),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: documentFilter
+});
+
 module.exports = {
   profileUpload,
   documentsUpload,
-  paymentUpload
+  paymentUpload,
+  thumbnailArticleUpload,
+  productUpload
 };
