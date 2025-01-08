@@ -10,77 +10,76 @@ const productSeeder = async () => {
         throw new Error('No product categories found. Please seed categories first.');
     }
 
-    // Daftar produk
     const products = [
         {
             title: 'Paracetamol',
             slug: 'paracetamol',
             description: 'Obat pereda nyeri dan penurun demam',
             thumbnail: 'https://via.placeholder.com/150',
-            price: 15.00,
+            price: Math.floor(Math.random() * (25000 - 10000 + 1)) + 10000,
         },
         {
             title: 'Amoxicillin',
             slug: 'amoxicillin',
             description: 'Antibiotik untuk mengobati infeksi bakteri',
             thumbnail: 'https://via.placeholder.com/150',
-            price: 30.00,
+            price: Math.floor(Math.random() * (25000 - 10000 + 1)) + 10000,
         },
         {
             title: 'Ibuprofen',
             slug: 'ibuprofen',
             description: 'Obat antiinflamasi nonsteroid untuk nyeri',
             thumbnail: 'https://via.placeholder.com/150',
-            price: 20.00,
+            price: Math.floor(Math.random() * (25000 - 10000 + 1)) + 10000,
         },
         {
             title: 'Cetirizine',
             slug: 'cetirizine',
             description: 'Obat antihistamin untuk alergi',
             thumbnail: 'https://via.placeholder.com/150',
-            price: 25.00,
+            price: Math.floor(Math.random() * (25000 - 10000 + 1)) + 10000,
         },
         {
             title: 'Loperamide',
             slug: 'loperamide',
             description: 'Obat untuk mengatasi diare',
             thumbnail: 'https://via.placeholder.com/150',
-            price: 18.00,
+            price: Math.floor(Math.random() * (25000 - 10000 + 1)) + 10000,
         },
         {
             title: 'Omeprazole',
             slug: 'omeprazole',
             description: 'Obat untuk mengatasi masalah lambung',
             thumbnail: 'https://via.placeholder.com/150',
-            price: 35.00,
+            price: Math.floor(Math.random() * (25000 - 10000 + 1)) + 10000,
         },
         {
             title: 'Simvastatin',
             slug: 'simvastatin',
             description: 'Obat untuk menurunkan kolesterol',
             thumbnail: 'https://via.placeholder.com/150',
-            price: 40.00,
+            price: Math.floor(Math.random() * (25000 - 10000 + 1)) + 10000,
         },
         {
             title: 'Metformin',
             slug: 'metformin',
             description: 'Obat untuk mengontrol gula darah pada diabetes',
             thumbnail: 'https://via.placeholder.com/150',
-            price: 50.00,
+            price: Math.floor(Math.random() * (25000 - 10000 + 1)) + 10000,
         },
         {
             title: 'Amlodipine',
             slug: 'amlodipine',
             description: 'Obat untuk mengatasi hipertensi',
             thumbnail: 'https://via.placeholder.com/150',
-            price: 22.00,
+            price: Math.floor(Math.random() * (25000 - 10000 + 1)) + 10000,
         },
         {
             title: 'Levothyroxine',
             slug: 'levothyroxine',
             description: 'Obat untuk mengatasi hipotiroidisme',
             thumbnail: 'https://via.placeholder.com/150',
-            price: 45.00,
+            price: Math.floor(Math.random() * (25000 - 10000 + 1)) + 10000,
         },
     ];
 
