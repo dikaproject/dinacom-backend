@@ -1,55 +1,90 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient, ConsultationStatus } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const createConsultation = async (req, res) => {
   try {
-    const { doctorId, schedule } = req.body;
+    const { 
+      doctorId, 
+      schedule, 
+      type,
+      symptoms,
+      concerns,
+      pregnancyWeek,
+      previousPregnancies
+    } = req.body;
     const userId = req.user.id;
 
-    console.log('Request data:', { userId, doctorId, schedule });
-
-    // Validate doctor exists
-    const doctor = await prisma.doctor.findUnique({
-      where: { id: doctorId }
-    });
- 
-    if (!doctor) {
-      console.log('Doctor not found:', doctorId);
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found'
+    // Format schedule to proper ISO DateTime
+    const scheduleDate = new Date(schedule);
+    if (isNaN(scheduleDate.getTime())) {
+      return res.status(400).json({
+        message: 'Invalid schedule format'
       });
     }
 
-    // Create consultation
-    const newConsultation = await prisma.consultation.create({
-      data: {
-        userId: userId,
-        doctorId: doctorId,
-        schedule: new Date(schedule),
-        status: 'PENDING'
-      },
-      include: {
-        doctor: true,
-        user: true
+    // Check if schedule is available
+    const existingConsultation = await prisma.consultation.findFirst({
+      where: {
+        doctorId,
+        schedule: scheduleDate,
+        status: {
+          in: [
+            ConsultationStatus.PENDING,
+            ConsultationStatus.CONFIRMED,
+            ConsultationStatus.COMPLETED
+          ]
+        }
       }
     });
 
-    console.log('Created consultation:', newConsultation);
+    if (existingConsultation) {
+      return res.status(400).json({
+        message: 'Schedule not available'
+      });
+    }
 
-    return res.status(201).json({
+    const consultation = await prisma.consultation.create({
+      data: {
+        userId,
+        doctorId,
+        schedule: scheduleDate,
+        type,
+        symptoms,
+        concerns,
+        pregnancyWeek,
+        previousPregnancies,
+        status: ConsultationStatus.PENDING
+      },
+      include: {
+        doctor: {
+          include: {
+            layananKesehatan: true
+          }
+        }
+      }
+    });
+
+    // Calculate fees based on consultation type and payment method
+    const consultationFee = consultation.doctor.consultationFee;
+    const serviceCharge = type === 'ONLINE' ? 15000 : 25000;
+    const tax = Math.round(consultationFee * 0.11); // 11% tax
+
+    res.status(201).json({
       success: true,
-      message: 'Consultation created successfully',
-      data: newConsultation
+      data: {
+        consultation,
+        fees: {
+          consultationFee,
+          serviceCharge,
+          tax,
+          total: consultationFee + serviceCharge + tax
+        }
+      }
     });
 
   } catch (error) {
     console.error('Create consultation error:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -276,11 +311,22 @@ const getConsultations = async (req, res) => {
         },
         include: {
           payment: true,
-          doctor: true,
+          doctor: {
+            select: {
+              fullName: true,
+              photoProfile: true,
+              consultationFee: true,
+              userId: true
+            }
+          },
           user: {
             select: {
-              email: true,
-              profile: true
+              profile: {
+                select: {
+                  fullName: true,
+                  photoProfile: true
+                }
+              }
             }
           }
         }
@@ -292,10 +338,23 @@ const getConsultations = async (req, res) => {
         });
       }
   
-      if (consultation.payment?.paymentStatus !== 'PAID') {
+      if (!consultation.payment || consultation.payment.paymentStatus !== 'PAID') {
         return res.status(403).json({ 
           message: 'Payment must be completed first' 
         });
+      }
+  
+      // Check if consultation time is valid for online
+      if (consultation.type === 'ONLINE') {
+        const now = new Date();
+        const consultationTime = new Date(consultation.schedule);
+        const timeDiff = Math.abs(now.getTime() - consultationTime.getTime()) / 60000; // in minutes
+  
+        if (timeDiff > 15) { // Allow 15 minutes before/after scheduled time
+          return res.status(403).json({
+            message: 'Consultation can only be started 15 minutes before/after scheduled time'
+          });
+        }
       }
   
       // Get chat history
@@ -306,20 +365,147 @@ const getConsultations = async (req, res) => {
             select: {
               email: true,
               role: true,
-              doctor: { select: { fullName: true } },
-              profile: { select: { fullName: true } }
+              doctor: { select: { fullName: true, photoProfile: true } },
+              profile: { select: { fullName: true, photoProfile: true } }
             }
           }
         },
         orderBy: { createdAt: 'asc' }
       });
   
+      // Update consultation status if first message
+      if (messages.length === 0) {
+        await prisma.consultation.update({
+          where: { id: consultationId },
+          data: { status: 'IN_PROGRESS' }
+        });
+  
+        // Send initial system message
+        await prisma.message.create({
+          data: {
+            consultationId,
+            content: `Consultation started with Dr. ${consultation.doctor.fullName}`,
+            type: 'SYSTEM'
+          }
+        });
+      }
+  
       res.json({
-        consultation,
+        consultation: {
+          ...consultation,
+          isDoctor: consultation.doctor.userId === userId
+        },
         messages,
         chatEnabled: true
       });
     } catch (error) {
+      console.error('Start consultation error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  };
+
+  const getPendingConsultation = async (req, res) => {
+    try {
+      const userId = req.user.id;
+  
+      const pending = await prisma.consultation.findFirst({
+        where: {
+          userId,
+          status: {
+            in: ['PENDING', 'CONFIRMED']
+          }
+        },
+        include: {
+          doctor: {
+            select: {
+              fullName: true
+            }
+          },
+          payment: {
+            select: {
+              amount: true,
+              paymentStatus: true
+            }
+          }
+        }
+      });
+  
+      res.json(pending);
+    } catch (error) {
+      console.error('Get pending consultation error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  };
+
+  const cancelConsultation = async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+  
+    try {
+      await prisma.$transaction(async (tx) => {
+        const consultation = await tx.consultation.findFirst({
+          where: {
+            id,
+            userId,
+            status: { not: 'COMPLETED' }
+          },
+          include: {
+            doctor: true
+          }
+        });
+  
+        if (!consultation) {
+          throw new Error('Consultation not found');
+        }
+  
+        // Update consultation status
+        await tx.consultation.update({
+          where: { id },
+          data: { status: 'CANCELLED' }
+        });
+  
+        // Update payment status if exists
+        if (consultation.payment) {
+          await tx.payment.update({
+            where: { consultationId: id },
+            data: { paymentStatus: 'FAILED' }
+          });
+        }
+  
+        // Update doctor schedule availability
+        const scheduleDate = new Date(consultation.schedule);
+        await tx.doctorSchedule.updateMany({
+          where: {
+            doctorId: consultation.doctorId,
+            dayOfWeek: scheduleDate.getDay(),
+            startTime: {
+              lte: scheduleDate.toLocaleTimeString('en-US', { 
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit'
+              })
+            },
+            endTime: {
+              gte: scheduleDate.toLocaleTimeString('en-US', { 
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit'
+              })
+            }
+          },
+          data: { 
+            isAvailable: true,
+            bookedDates: {
+              // Remove this date from bookedDates array
+              set: [] // or update your logic to remove specific date
+            }
+          }
+        });
+      });
+  
+      res.json({ message: 'Consultation cancelled successfully' });
+    } catch (error) {
+      console.error('Cancel consultation error:', error);
       res.status(500).json({ message: error.message });
     }
   };
@@ -332,5 +518,7 @@ const getConsultations = async (req, res) => {
     deleteConsultation,
     getAllConsultationsByDoctor,
     getAllConsultationsAdmin,
-    startConsultation
+    startConsultation,
+    getPendingConsultation,
+    cancelConsultation
   };

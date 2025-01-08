@@ -23,17 +23,28 @@ const sendReminder = async (req, res) => {
 
 const updateReminderSettings = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.id;
     const { isWhatsappActive, reminderTime } = req.body;
 
-    const updated = await prisma.pregnantProfile.update({
+    const profile = await prisma.pregnantProfile.update({
       where: { userId },
-      data: { isWhatsappActive, reminderTime }
+      data: {
+        isWhatsappActive,
+        reminderTime: new Date(reminderTime),
+        lastReminderSent: null
+      }
     });
 
-    res.json(updated);
+    res.json({
+      success: true,
+      profile
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Update reminder settings error:', error);
+    res.status(500).json({
+      message: 'Failed to update reminder settings',
+      error: error.message
+    });
   }
 };
 

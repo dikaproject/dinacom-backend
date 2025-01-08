@@ -16,6 +16,8 @@ const paymentRoutes = require('./routes/payment');
 const messageRoutes = require('./routes/message');
 const pregnancyRoutes = require('./routes/pregnancy');
 const communityChatRoutes = require('./routes/comunityChat');
+const doctorScheduleRoutes = require('./routes/doctorSchedule');
+const doctorRoutes = require('./routes/doctor');
 const { setupCronJobs } = require('./utils/cron');
 
 
@@ -36,16 +38,17 @@ const io = new Server(httpServer, {
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
+app.use('/api/uploads', express.static('uploads'));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/doctor', doctorRoutes);
 app.use('/api/consultation', consultationRoutes);
 app.use('/api/doctor-verification', doctorVerificationRoutes);
 app.use('/api/layanan-kesehatan', layananKesehatanRoutes);
 app.use('/api/article-category', articleCategoryRoutes);
 app.use('/api/article', articleRoutes);
-app.use('/api/payment', paymentRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/pregnancy', pregnancyRoutes);
 app.use('/api/community', communityChatRoutes);
@@ -53,6 +56,9 @@ app.use('/api/community', communityChatRoutes);
 app.use('/api/product-category', productCategoryRoutes);
 app.use('/api/product', productRoutes);
 app.use('/api/cart', cartProductRoutes);
+app.use('/api/settings', require('./routes/settings'));
+app.use('/api/doctor-schedules', doctorScheduleRoutes);
+console.log('Initializing cron jobs...');
 setupCronJobs();
 
 

@@ -1,66 +1,63 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { calculateFees } = require('../utils/payment');
 const snap = require('../utils/midtrans');
+const { calculateFees, generatePaymentGuide } = require('../utils/payment/paymentUtils');
 
 const createPayment = async (req, res) => {
-    try {
-      const { consultationId, paymentMethod } = req.body;
-      const userId = req.user.id;
-  
-      const consultation = await prisma.consultation.findFirst({
-        where: { 
-          id: consultationId,
-          userId,
-          payment: null
-        },
-        include: { 
-          doctor: {
-            select: {
-              fullName: true,
-              consultationFee: true
-            }
-          }
-        }
-      });
-  
-      if (!consultation) {
-        return res.status(404).json({ message: 'Consultation not found or payment exists' });
-      }
-  
-      const { baseAmount, platformFee, totalAmount } = calculateFees(consultation.doctor.consultationFee);
-  
-      const payment = await prisma.payment.create({
-        data: {
-          consultationId,
-          amount: baseAmount,
-          platformFee,
-          totalAmount,
-          paymentMethod,
-          expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        },
-        include: {
-          consultation: {
-            include: {
-              doctor: true
-            }
-          }
-        }
-      });
-  
-      res.status(201).json({
-        message: 'Payment created',
-        data: {
-          ...payment,
-          doctorName: consultation.doctor.fullName,
-          consultationFee: consultation.doctor.consultationFee
-        }
-      });
-    } catch (error) {
-      console.error('Create payment error:', error);
-      res.status(500).json({ message: error.message });
+  try {
+    const { consultationId, paymentMethod, bankCode } = req.body;
+
+    const consultation = await prisma.consultation.findUnique({
+      where: { id: consultationId },
+      include: { doctor: true }
+    });
+
+    if (!consultation) {
+      return res.status(404).json({ message: 'Consultation not found' });
     }
-  };
+
+    const { baseAmount, platformFee, tax, totalAmount } = calculateFees(
+      consultation.doctor.consultationFee,
+      paymentMethod
+    );
+
+    const payment = await prisma.payment.create({
+      data: {
+        consultationId,
+        amount: baseAmount,
+        platformFee,
+        tax,
+        totalAmount,
+        paymentMethod,
+        paymentStatus: 'PENDING',
+        expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+      }
+    });
+
+    const response = {
+      success: true,
+      data: {
+        payment,
+        guide: generatePaymentGuide(paymentMethod, bankCode),
+        breakdown: {
+          consultationFee: baseAmount,
+          platformFee,
+          tax,
+          total: totalAmount
+        }
+      }
+    };
+
+    if (paymentMethod === 'QRIS') {
+      response.data.qrisUrl = '/uploads/qris.jpeg';
+    }
+
+    res.json(response);
+  } catch (error) {
+    console.error('Create payment error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
 
 const uploadPaymentProof = async (req, res) => {
   try {
@@ -163,79 +160,97 @@ const verifyManualPayment = async (req, res) => {
 };
 
 const createMidtransPayment = async (req, res) => {
-    try {
-      const { consultationId } = req.body;
-      const userId = req.user.id;
-  
-      const consultation = await prisma.consultation.findFirst({
-        where: { 
-          id: consultationId,
-          userId,
-          payment: null
-        },
-        include: { 
-          doctor: true,
-          user: {
-            include: {
-              profile: true
-            }
+  try {
+    const { consultationId } = req.body;
+    const userId = req.user.id;
+
+    const consultation = await prisma.consultation.findFirst({
+      where: { 
+        id: consultationId,
+        userId,
+        payment: null
+      },
+      include: { 
+        doctor: true,
+        user: {
+          include: {
+            profile: true
           }
         }
-      });
-  
-      if (!consultation) {
-        return res.status(404).json({ message: 'Consultation not found or payment exists' });
       }
-  
-      const { baseAmount, platformFee, totalAmount } = calculateFees(150000);
-  
-      // Create payment record
-      const payment = await prisma.payment.create({
-        data: {
-          consultationId,
-          amount: baseAmount,
-          platformFee,
-          totalAmount,
-          paymentMethod: 'MIDTRANS',
-          expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        }
-      });
-  
-      // Create Midtrans transaction
-      const transaction = await snap.createTransaction({
-        transaction_details: {
-          order_id: payment.id,
-          gross_amount: Math.round(totalAmount)
-        },
-        customer_details: {
-          first_name: consultation.user.profile.fullName,
-          email: consultation.user.email,
-        },
-        item_details: [{
+    });
+
+    if (!consultation) {
+      return res.status(404).json({ message: 'Consultation not found or payment exists' });
+    }
+
+    const { baseAmount, serviceCharge, tax, totalAmount } = calculateFees(
+      consultation.doctor.consultationFee,
+      'MIDTRANS'
+    );
+
+    const payment = await prisma.payment.create({
+      data: {
+        consultationId,
+        amount: baseAmount,
+        serviceCharge,
+        tax,
+        totalAmount,
+        paymentMethod: 'MIDTRANS',
+        expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        status: 'PENDING'
+      }
+    });
+
+    const transaction = await snap.createTransaction({
+      transaction_details: {
+        order_id: payment.id,
+        gross_amount: totalAmount
+      },
+      customer_details: {
+        first_name: consultation.user.profile.fullName,
+        email: consultation.user.email,
+      },
+      item_details: [
+        {
           id: consultationId,
-          price: Math.round(baseAmount),
+          price: baseAmount,
           quantity: 1,
           name: `Konsultasi dengan Dr. ${consultation.doctor.fullName}`,
-        }, {
-          id: 'platform-fee',
-          price: Math.round(platformFee),
+        },
+        {
+          id: 'service-charge',
+          price: serviceCharge,
           quantity: 1,
-          name: 'Biaya Platform',
-        }]
-      });
-  
-      res.status(201).json({
-        message: 'Midtrans payment created',
-        data: {
-          payment,
-          snapToken: transaction.token
+          name: 'Biaya Layanan',
+        },
+        {
+          id: 'tax',
+          price: tax,
+          quantity: 1,
+          name: 'Pajak',
         }
-      });
-    } catch (error) {
-      console.error('Midtrans payment error:', error);
-      res.status(500).json({ message: error.message });
-    }
-  };
+      ]
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        payment,
+        snapToken: transaction.token,
+        breakdown: {
+          consultationFee: baseAmount,
+          serviceCharge,
+          tax,
+          total: totalAmount
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Midtrans payment error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
   
   const handleMidtransNotification = async (req, res) => {
     try {
