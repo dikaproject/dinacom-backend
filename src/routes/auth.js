@@ -8,17 +8,15 @@ const { documentsUpload, profileUpload } = require('../middleware/upload');
 // Use multiple single uploads instead of fields
 router.post('/register', register);
 
-router.post('/register-doctor',
-  // Handle each file upload separately
-  profileUpload.single('photoProfile'),
-  documentsUpload.single('documentsProof'),
+router.post('/register-doctor', 
+  profileUpload.fields([
+    { name: 'photoProfile', maxCount: 1 },
+    { name: 'documentsProof', maxCount: 1 }
+  ]), 
   registerDoctor
 );
 
 router.post('/login', login);
 
-router.get('/doctor-only', authMiddleware, checkRole(['DOCTOR']), (req, res) => {
-  res.json({ message: 'Doctor access only' });
-});
 
 module.exports = router;

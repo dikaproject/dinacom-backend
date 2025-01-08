@@ -142,4 +142,150 @@ Please generate a pregnancy recommendation.`;
   }
 };
 
-module.exports = { analyzeHealthData };
+const generateHealthInsights = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Fetch all user data
+    const profile = await prisma.pregnantProfile.findUnique({
+      where: { userId },
+      include: {
+        dailyCheckups: {
+          orderBy: { date: 'desc' },
+          take: 7 // Last 7 days
+        },
+        nutritionLogs: {
+          orderBy: { date: 'desc' },
+          take: 7
+        },
+        exerciseLogs: {
+          orderBy: { date: 'desc' },
+          take: 7
+        }
+      }
+    });
+
+    if (!profile) {
+      return res.status(404).json({
+        message: 'Profile not found'
+      });
+    }
+
+    // Prepare data for AI analysis
+    const weeklyData = {
+      profile: {
+        pregnancyWeek: profile.pregnancyWeek,
+        trimester: profile.trimester,
+        dueDate: profile.dueDate
+      },
+      checkups: profile.dailyCheckups.map(c => ({
+        date: c.date,
+        weight: c.weight,
+        bloodPressure: c.bloodPressure,
+        mood: c.mood,
+        symptoms: c.symptoms
+      })),
+      nutrition: profile.nutritionLogs.map(n => ({
+        calories: n.calories,
+        protein: n.protein,
+        carbs: n.carbs,
+        fats: n.fats
+      })),
+      exercise: profile.exerciseLogs.map(e => ({
+        activityType: e.activityType,
+        duration: e.duration,
+        intensity: e.intensity
+      }))
+    };
+
+    const promptText = `
+      As a pregnancy health expert, analyze this mother's weekly data and provide insights in JSON format.
+      Current Status: Week ${weeklyData.profile.pregnancyWeek}, ${weeklyData.profile.trimester}
+      
+      Weekly Health Data: ${JSON.stringify(weeklyData.checkups)}
+      Nutrition Summary: ${JSON.stringify(weeklyData.nutrition)}
+      Exercise Activities: ${JSON.stringify(weeklyData.exercise)}
+
+      Respond ONLY with a valid JSON object using this exact structure:
+      {
+        "overallStatus": "string describing overall health status",
+        "nutritionAnalysis": "string analyzing nutrition patterns",
+        "nutritionRecommendations": ["array of specific nutrition recommendations"],
+        "exerciseEvaluation": "string evaluating exercise patterns",
+        "exerciseSuggestions": ["array of exercise suggestions"],
+        "warningSignsToWatch": ["array of warning signs if any"],
+        "weeklyRecommendations": ["array of recommendations for current week"],
+        "currentWeek": number
+      }`;
+
+    const aiResponse = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { 
+          role: "system", 
+          content: "You are an expert pregnancy health analyst. Respond only with valid JSON data." 
+        },
+        { role: "user", content: promptText }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+      response_format: { type: "json_object" } // Enforce JSON response
+    });
+
+    let analysis;
+    try {
+      // Clean the response content
+      const content = aiResponse.choices[0].message.content.trim();
+      analysis = JSON.parse(content);
+    } catch (parseError) {
+      console.error('JSON Parse Error:', parseError);
+      throw new Error('Invalid AI response format');
+    }
+
+    // Validate required fields
+    const requiredFields = [
+      'overallStatus',
+      'nutritionAnalysis',
+      'nutritionRecommendations',
+      'exerciseEvaluation',
+      'exerciseSuggestions',
+      'weeklyRecommendations',
+      'currentWeek'
+    ];
+
+    for (const field of requiredFields) {
+      if (!analysis[field]) {
+        throw new Error(`Missing required field: ${field}`);
+      }
+    }
+
+    // Save validated insights
+    await prisma.aIRecommendation.create({
+      data: {
+        profileId: profile.id,
+        type: 'COMPREHENSIVE',
+        week: profile.pregnancyWeek,
+        trimester: profile.trimester,
+        recommendation: analysis,
+        analysis: 'Weekly Comprehensive Health Analysis'
+      }
+    });
+
+    res.json({
+      success: true,
+      analysis: analysis
+    });
+
+  } catch (error) {
+    console.error('Health Insights Error:', error);
+    res.status(500).json({
+      message: 'Failed to generate health insights',
+      error: error.message
+    });
+  }
+};
+
+module.exports = { 
+  analyzeHealthData,
+  generateHealthInsights 
+};

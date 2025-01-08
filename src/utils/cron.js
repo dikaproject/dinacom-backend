@@ -5,29 +5,44 @@ const { sendDailyReminder } = require('./whatsapp');
 const prisma = new PrismaClient();
 
 const setupCronJobs = () => {
+  console.log('Setting up cron jobs...');
+
   cron.schedule('* * * * *', async () => {
     try {
       const now = new Date();
-      const todayStart = new Date(now.setHours(0, 0, 0, 0));
-      const todayEnd = new Date(now.setHours(23, 59, 59, 999));
+      const wibNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+      
+      console.log('=== Cron Job Running ===');
+      console.log(`Current WIB Time: ${wibNow.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })}`);
+
+      // Create time window for current minute in UTC
+      const startTime = new Date();
+      startTime.setUTCMinutes(startTime.getUTCMinutes(), 0, 0);
+      
+      const endTime = new Date(startTime);
+      endTime.setUTCMinutes(endTime.getUTCMinutes() + 1);
+
+      console.log(`Looking for reminders set to UTC: ${startTime.toISOString()}`);
 
       const profiles = await prisma.pregnantProfile.findMany({
         where: {
           isWhatsappActive: true,
           reminderTime: {
-            gte: new Date(now.setMinutes(now.getMinutes() - 1)),
-            lt: new Date(now.setMinutes(now.getMinutes() + 1))
+            gte: startTime,
+            lt: endTime
           },
           OR: [
             { lastReminderSent: null },
             {
               lastReminderSent: {
-                lt: todayStart
+                lt: new Date(startTime.setUTCHours(0, 0, 0, 0))
               }
             }
           ]
         }
       });
+
+      console.log(`Found ${profiles.length} profiles to remind`);
 
       for (const profile of profiles) {
         try {
@@ -36,14 +51,16 @@ const setupCronJobs = () => {
             where: { id: profile.id },
             data: { lastReminderSent: now }
           });
-          console.log(`Reminder sent to ${profile.phoneNumber} at ${now.toISOString()}`);
         } catch (error) {
-          console.error(`Failed to send reminder to ${profile.phoneNumber}:`, error.message);
+          console.error(`Failed to send reminder to ${profile.phoneNumber}:`, error);
         }
       }
     } catch (error) {
       console.error('Cron job error:', error);
     }
+  }, {
+    scheduled: true,
+    timezone: "Asia/Jakarta"
   });
 };
 

@@ -67,6 +67,24 @@ enum PregnancyWeek {
   THIRD_TRIMESTER    // 27-40 weeks
 }
 
+enum ConsultationType {
+  ONLINE
+  OFFLINE
+}
+
+model DoctorSchedule {
+  id            String      @id @default(uuid())
+  doctorId      String
+  doctor        Doctor      @relation(fields: [doctorId], references: [id])
+  dayOfWeek     Int         // 0-6 for Sunday-Saturday
+  startTime     String      // Format: "HH:mm"
+  endTime       String
+  isAvailable   Boolean     @default(true)
+  bookedDates   Json?       // Store array of booked dates
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
 model User {
   id            String           @id @default(uuid())
   email         String           @unique
@@ -138,20 +156,19 @@ model DailyCheckup {
   updatedAt       DateTime        @updatedAt
 }
 model NutritionLog {
-  id              String          @id @default(uuid())
-  profileId       String
-  profile         PregnantProfile @relation(fields: [profileId], references: [id])
-  date            DateTime
-  mealType        String         // breakfast, lunch, dinner, snack
-  foodItems       Json           // array of food items with nutrients
-  totalCalories   Float
-  totalProtein    Float
-  totalCarbs      Float
-  totalFat        Float
-  totalFolate     Float
-  totalIron       Float
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id          String          @id @default(uuid())
+  profileId   String
+  profile     PregnantProfile @relation(fields: [profileId], references: [id])
+  date        DateTime
+  mealType    String         // breakfast, lunch, dinner, snack
+  foodItems   Json           // array of food items
+  calories    Float
+  protein     Float
+  carbs       Float
+  fats        Float
+  notes       String?        @db.Text
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
 
 model ExerciseLog {
@@ -186,8 +203,9 @@ model Payment {
   consultationId  String        @unique
   consultation    Consultation  @relation(fields: [consultationId], references: [id])
   amount          Float         // Base amount
-  platformFee     Float         // 5% of amount
-  totalAmount     Float         // amount + platformFee + gatewayFee
+  platformFee     Float         // Service charge
+  tax             Float         // Tax amount
+  totalAmount     Float         // Total after fees
   paymentMethod   PaymentMethod
   paymentStatus   PaymentStatus @default(PENDING)
   paymentProof    String?       // For manual payment
@@ -200,18 +218,23 @@ model Payment {
 
 
 model Consultation {
-  id        String             @id @default(uuid())
-  userId    String
-  user      User               @relation(fields: [userId], references: [id])
-  doctorId  String
-  doctor    Doctor             @relation(fields: [doctorId], references: [id])
-  schedule  DateTime
+  id          String            @id @default(uuid())
+  type        ConsultationType  @default(OFFLINE)
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
+  doctorId    String
+  doctor      Doctor            @relation(fields: [doctorId], references: [id])
+  schedule    DateTime
+  status      ConsultationStatus @default(PENDING)
+  notes       String?           @db.Text
   payment     Payment?
-  status    ConsultationStatus @default(PENDING)
-  notes     String?            @db.Text
-  messages  Message[]
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  messages    Message[]
+  symptoms    String?           @db.Text
+  concerns    String?           @db.Text
+  pregnancyWeek Int
+  previousPregnancies Int
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 }
 
 model Message {
@@ -256,6 +279,7 @@ model Doctor {
   layananKesehatanId  String
   layananKesehatan    LayananKesehatan @relation(fields: [layananKesehatanId], references: [id])
   consultations       Consultation[] // Add this relation
+  schedules          DoctorSchedule[]
   consultationFee  Float           @default(150000)
   educationBackground String           @db.Text
   verificationStatus  VerificationStatus @default(PENDING)

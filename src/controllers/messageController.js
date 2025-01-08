@@ -27,19 +27,28 @@ const getMessages = async (req, res) => {
 const sendMessage = async (req, res) => {
   try {
     const { consultationId } = req.params;
-    const { content } = req.body;
+    const { content, type = 'TEXT' } = req.body;
     const senderId = req.user.id;
 
-    // Verify consultation is active
     const consultation = await prisma.consultation.findFirst({
       where: {
         id: consultationId,
-        status: 'CONFIRMED'
+        status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
+        OR: [
+          { userId: senderId },
+          { doctor: { userId: senderId } }
+        ]
+      },
+      include: {
+        doctor: true,
+        user: true
       }
     });
 
     if (!consultation) {
-      return res.status(404).json({ message: 'Consultation not found or not active' });
+      return res.status(404).json({
+        message: 'Consultation not found or not active'
+      });
     }
 
     const message = await prisma.message.create({
@@ -47,6 +56,7 @@ const sendMessage = async (req, res) => {
         consultationId,
         senderId,
         content,
+        type,
         isRead: false
       },
       include: {
@@ -54,15 +64,30 @@ const sendMessage = async (req, res) => {
           select: {
             email: true,
             role: true,
-            doctor: { select: { fullName: true } },
-            profile: { select: { fullName: true } }
+            doctor: { select: { fullName: true, photoProfile: true } },
+            profile: { select: { fullName: true, photoProfile: true } }
           }
         }
       }
     });
 
+    // Create notification for recipient
+    const recipientId = senderId === consultation.userId 
+      ? consultation.doctor.userId 
+      : consultation.userId;
+
+    await prisma.notification.create({
+      data: {
+        userId: recipientId,
+        title: 'New Message',
+        message: `You have a new message in consultation #${consultation.id}`,
+        type: 'MESSAGE'
+      }
+    });
+
     res.status(201).json(message);
   } catch (error) {
+    console.error('Send message error:', error);
     res.status(500).json({ message: error.message });
   }
 };
