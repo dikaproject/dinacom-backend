@@ -1,3 +1,4 @@
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
@@ -11,8 +12,15 @@ const getCartProducts = async (req, res) => {
                 cart: { userId }, 
             },
             include: {
-                product: true,
-                cart: true,
+                product: {
+                    select: {
+                        id: true,
+                        title: true,
+                        price: true,
+                        thumbnail: true,
+                        description: true
+                    }
+                }
             },
         });
 
