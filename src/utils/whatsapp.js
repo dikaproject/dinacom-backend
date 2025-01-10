@@ -41,10 +41,10 @@ const sendDailyReminder = async (profile) => {
   Time for your daily pregnancy check-in ✨
   
   Quick reply with numbers:
-  1️⃣ Record weight & symptoms
-  2️⃣ Log today's meals
-  3️⃣ Track exercise
-  4️⃣ View recommendations
+  1️⃣ Record weight & symptoms ( daily checkup )
+  2️⃣ Log today's meals ( nutrition )
+  3️⃣ Track exercise ( fitness )
+  4️⃣ View recommendations ( insights )
   
   Stay healthy! 💪`;
   
@@ -53,10 +53,10 @@ const sendDailyReminder = async (profile) => {
   Waktunya pemeriksaan kehamilan harian ✨
   
   Balas dengan angka:
-  1️⃣ Catat berat badan & gejala
-  2️⃣ Catat makanan hari ini
-  3️⃣ Catat olahraga
-  4️⃣ Lihat rekomendasi
+  1️⃣ Catat berat badan & gejala ( ceckup harian )
+  2️⃣ Catat makanan hari ini ( nutrisi )
+  3️⃣ Catat olahraga ( kebugaran )
+  4️⃣ Lihat rekomendasi ( informasi )
   
   Jaga kesehatan! 💪`;
   

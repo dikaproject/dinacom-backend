@@ -1,5 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const path = require('path');
+const fs = require('fs').promises;
 
 const calculatePregnancyWeek = (dueDate) => {
   const today = new Date();
@@ -113,14 +115,71 @@ const getProfile = async (req, res) => {
       return res.status(404).json({ message: 'Profile not found' });
     }
 
-    res.json({ profile });
+    // Transform response to match frontend expectations
+    const responseProfile = {
+      ...profile,
+      photoProfile: profile.photoProfile || null,
+      user: {
+        email: profile.user.email,
+        role: profile.user.role
+      }
+    };
+
+    res.json({ profile: responseProfile });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ message: error.message });
   }
 };
 
+const updateProfile = async (req, res) => {
+  try {
+    const { fullName, phoneNumber, address } = req.body;
+    const photoProfile = req.file?.filename;
+
+    // If new photo uploaded, delete old photo
+    if (photoProfile) {
+      const oldProfile = await prisma.pregnantProfile.findUnique({
+        where: { userId: req.user.id },
+        select: { photoProfile: true }
+      });
+
+      if (oldProfile?.photoProfile) {
+        const oldPhotoPath = path.join(__dirname, '../../uploads/profiles', oldProfile.photoProfile);
+        await fs.unlink(oldPhotoPath).catch(console.error);
+      }
+    }
+
+    const updatedProfile = await prisma.pregnantProfile.update({
+      where: { userId: req.user.id },
+      data: {
+        fullName,
+        phoneNumber,
+        address,
+        ...(photoProfile && { photoProfile })
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+            role: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      message: 'Profile updated successfully',
+      profile: updatedProfile
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createProfile,
-  getProfile
+  getProfile,
+  updateProfile
 };

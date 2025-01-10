@@ -10,6 +10,11 @@ const {
   handleMidtransNotification
 } = require('../controllers/PaymentController');
 
+// Change the order of routes (more specific routes first)
+router.post('/midtrans', authMiddleware, createMidtransPayment);
+router.post('/midtrans/notification', handleMidtransNotification);
+
+// Other routes
 router.post('/', authMiddleware, createPayment);
 router.post('/:paymentId/proof', 
   authMiddleware, 
@@ -17,7 +22,5 @@ router.post('/:paymentId/proof',
   uploadPaymentProof
 );
 router.post('/:paymentId/verify', authMiddleware, checkRole(['DOCTOR']), verifyManualPayment);
-router.post('/midtrans', authMiddleware, createMidtransPayment);
-router.post('/midtrans/notification', handleMidtransNotification);
 
 module.exports = router;
