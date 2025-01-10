@@ -68,6 +68,13 @@ const uploadPaymentProof = async (req, res) => {
       return res.status(400).json({ message: 'Payment proof required' });
     }
 
+    // Add debug logging
+    console.log('Uploading payment proof:', {
+      paymentId,
+      filename: paymentProof,
+      file: req.file
+    });
+
     const payment = await prisma.payment.update({
       where: { id: paymentId },
       data: { 
@@ -78,9 +85,13 @@ const uploadPaymentProof = async (req, res) => {
 
     res.json({
       message: 'Payment proof uploaded',
-      data: payment
+      data: {
+        ...payment,
+        paymentProofUrl: `/api/uploads/payments/${paymentProof}`
+      }
     });
   } catch (error) {
+    console.error('Payment proof upload error:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -168,44 +179,53 @@ const createMidtransPayment = async (req, res) => {
       where: { 
         id: consultationId,
         userId,
-        payment: null
+        OR: [
+          { status: 'PENDING' },
+          { payment: { paymentStatus: 'PENDING' } }
+        ]
       },
       include: { 
         doctor: true,
         user: {
-          include: {
-            profile: true
-          }
-        }
+          include: { profile: true }
+        },
+        payment: true
       }
     });
 
     if (!consultation) {
-      return res.status(404).json({ message: 'Consultation not found or payment exists' });
+      return res.status(404).json({ message: 'Consultation not found' });
     }
 
-    const { baseAmount, serviceCharge, tax, totalAmount } = calculateFees(
+    // Calculate fees including platform fee and tax
+    const { baseAmount, platformFee, tax, totalAmount } = calculateFees(
       consultation.doctor.consultationFee,
       'MIDTRANS'
     );
 
-    const payment = await prisma.payment.create({
-      data: {
-        consultationId,
-        amount: baseAmount,
-        serviceCharge,
-        tax,
-        totalAmount,
-        paymentMethod: 'MIDTRANS',
-        expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        status: 'PENDING'
-      }
-    });
+    // Create or use existing payment
+    let payment = consultation.payment;
+    
+    if (!payment) {
+      payment = await prisma.payment.create({
+        data: {
+          consultationId,
+          amount: baseAmount,
+          platformFee,
+          tax,
+          totalAmount,
+          paymentMethod: 'MIDTRANS',
+          paymentStatus: 'PENDING',
+          expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        }
+      });
+    }
 
+    // Create Midtrans transaction with correct total amount
     const transaction = await snap.createTransaction({
       transaction_details: {
         order_id: payment.id,
-        gross_amount: totalAmount
+        gross_amount: totalAmount // Use total amount including fees
       },
       customer_details: {
         first_name: consultation.user.profile.fullName,
@@ -216,21 +236,27 @@ const createMidtransPayment = async (req, res) => {
           id: consultationId,
           price: baseAmount,
           quantity: 1,
-          name: `Konsultasi dengan Dr. ${consultation.doctor.fullName}`,
+          name: `Consultation with Dr. ${consultation.doctor.fullName}`,
         },
         {
-          id: 'service-charge',
-          price: serviceCharge,
+          id: 'platform-fee',
+          price: platformFee,
           quantity: 1,
-          name: 'Biaya Layanan',
+          name: 'Platform Fee',
         },
         {
           id: 'tax',
           price: tax,
           quantity: 1,
-          name: 'Pajak',
+          name: 'Tax',
         }
       ]
+    });
+
+    console.log('Created Midtrans transaction:', {
+      orderId: payment.id,
+      totalAmount,
+      breakdown: { baseAmount, platformFee, tax }
     });
 
     res.status(201).json({
@@ -240,12 +266,13 @@ const createMidtransPayment = async (req, res) => {
         snapToken: transaction.token,
         breakdown: {
           consultationFee: baseAmount,
-          serviceCharge,
+          platformFee,
           tax,
           total: totalAmount
         }
       }
     });
+
   } catch (error) {
     console.error('Midtrans payment error:', error);
     res.status(500).json({ message: error.message });

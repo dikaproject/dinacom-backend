@@ -157,53 +157,70 @@ const getConsultations = async (req, res) => {
   };
   
   const updateConsultation = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, notes } = req.body;
-    const userId = req.user.id;
-
-    // Get consultation
-    const consultation = await prisma.consultation.findUnique({
-      where: { id },
-      include: { doctor: true }
-    });
-
-    if (!consultation) {
-      return res.status(404).json({ message: 'Consultation not found' });
-    }
-
-    // Check if user is the doctor
-    if (consultation.doctor.userId !== userId) {
-      return res.status(403).json({ message: 'Only assigned doctor can update consultation status' });
-    }
-
-    // Update consultation
-    const updated = await prisma.consultation.update({
-      where: { id },
-      data: { 
-        status,
-        notes
-      },
-      include: {
-        doctor: true,
-        user: {
-          select: {
-            email: true,
-            profile: true
-          }
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const userId = req.user.id;
+  
+      // Get consultation with payment info
+      const consultation = await prisma.consultation.findUnique({
+        where: { id },
+        include: { 
+          doctor: true,
+          payment: true 
         }
+      });
+  
+      if (!consultation) {
+        return res.status(404).json({ message: 'Consultation not found' });
       }
-    });
-
-    res.json({
-      message: 'Consultation updated successfully',
-      data: updated
-    });
-  } catch (error) {
-    console.error('Update consultation error:', error);
-    res.status(500).json({ message: error.message });
-  }
-};
+  
+      // Check if user is the doctor
+      if (consultation.doctor.userId !== userId) {
+        return res.status(403).json({ message: 'Only assigned doctor can update consultation status' });
+      }
+  
+      // Transaction to update both consultation and payment status
+      const updated = await prisma.$transaction(async (tx) => {
+        // Update consultation status
+        const updatedConsultation = await tx.consultation.update({
+          where: { id },
+          data: { status },
+          include: {
+            doctor: true,
+            user: {
+              select: {
+                email: true,
+                profile: true
+              }
+            },
+            payment: true
+          }
+        });
+  
+        // If confirming consultation, also update payment status
+        if (status === 'CONFIRMED' && consultation.payment) {
+          await tx.payment.update({
+            where: { id: consultation.payment.id },
+            data: { 
+              paymentStatus: 'PAID',
+              paidAt: new Date()
+            }
+          });
+        }
+  
+        return updatedConsultation;
+      });
+  
+      res.json({
+        message: 'Consultation updated successfully',
+        data: updated
+      });
+    } catch (error) {
+      console.error('Update consultation error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  };
   
   const deleteConsultation = async (req, res) => {
     try {
@@ -218,49 +235,57 @@ const getConsultations = async (req, res) => {
   };
 
   const getAllConsultationsByDoctor = async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    // First get doctor data
-    const doctor = await prisma.doctor.findUnique({
-      where: { userId }
-    });
-
-    if (!doctor) {
-      return res.status(404).json({ 
-        message: 'Doctor profile not found' 
+    try {
+      const userId = req.user.id;
+  
+      const doctor = await prisma.doctor.findUnique({
+        where: { userId }
       });
-    }
-
-    const consultations = await prisma.consultation.findMany({
-      where: { doctorId: doctor.id },
-      include: {
-        user: {
-          select: {
-            email: true,
-            profile: {
-              select: {
-                fullName: true,
-                phoneNumber: true
+  
+      if (!doctor) {
+        return res.status(404).json({ 
+          message: 'Doctor profile not found' 
+        });
+      }
+  
+      const consultations = await prisma.consultation.findMany({
+        where: { doctorId: doctor.id },
+        include: {
+          user: {
+            select: {
+              email: true,
+              profile: {
+                select: {
+                  fullName: true,
+                  phoneNumber: true
+                }
               }
             }
+          },
+          payment: {
+            select: {
+              amount: true,
+              paymentStatus: true,
+              paymentMethod: true,
+              paymentProof: true // Add this
+            }
           }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    res.json({
-      success: true,
-      data: consultations
-    });
-  } catch (error) {
-    console.error('Get doctor consultations error:', error);
-    res.status(500).json({ 
-      message: error.message 
-    });
-  }
-};
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+  
+      // Match the expected response format
+      res.json({
+        success: true,
+        data: consultations
+      });
+    } catch (error) {
+      console.error('Get doctor consultations error:', error);
+      res.status(500).json({ 
+        message: error.message 
+      });
+    }
+  };
   
   const getAllConsultationsAdmin = async (req, res) => {
     try {
@@ -303,30 +328,35 @@ const getConsultations = async (req, res) => {
       const consultation = await prisma.consultation.findFirst({
         where: {
           id: consultationId,
-          status: 'CONFIRMED',
+          status: { in: [ConsultationStatus.CONFIRMED, ConsultationStatus.IN_PROGRESS, ConsultationStatus.COMPLETED] },
           OR: [
             { userId },
             { doctor: { userId } }
           ]
         },
         include: {
-          payment: true,
           doctor: {
             select: {
+              id: true,
               fullName: true,
               photoProfile: true,
-              consultationFee: true,
-              userId: true
+              userId: true,
+              consultationFee: true
             }
           },
           user: {
             select: {
+              id: true,
               profile: {
                 select: {
-                  fullName: true,
-                  photoProfile: true
+                  fullName: true
                 }
               }
+            }
+          },
+          payment: {
+            select: {
+              paymentStatus: true
             }
           }
         }
@@ -334,30 +364,19 @@ const getConsultations = async (req, res) => {
   
       if (!consultation) {
         return res.status(404).json({ 
-          message: 'Consultation not found or not confirmed' 
+          message: 'Consultation not found or not accessible' 
         });
       }
   
       if (!consultation.payment || consultation.payment.paymentStatus !== 'PAID') {
-        return res.status(403).json({ 
-          message: 'Payment must be completed first' 
+        return res.status(403).json({
+          message: 'Payment must be completed first'
         });
       }
   
-      // Check if consultation time is valid for online
-      if (consultation.type === 'ONLINE') {
-        const now = new Date();
-        const consultationTime = new Date(consultation.schedule);
-        const timeDiff = Math.abs(now.getTime() - consultationTime.getTime()) / 60000; // in minutes
+      // Format date to ISO string
+      consultation.schedule = consultation.schedule.toISOString();
   
-        if (timeDiff > 15) { // Allow 15 minutes before/after scheduled time
-          return res.status(403).json({
-            message: 'Consultation can only be started 15 minutes before/after scheduled time'
-          });
-        }
-      }
-  
-      // Get chat history
       const messages = await prisma.message.findMany({
         where: { consultationId },
         include: {
@@ -365,30 +384,13 @@ const getConsultations = async (req, res) => {
             select: {
               email: true,
               role: true,
-              doctor: { select: { fullName: true, photoProfile: true } },
-              profile: { select: { fullName: true, photoProfile: true } }
+              doctor: { select: { fullName: true } },
+              profile: { select: { fullName: true } }
             }
           }
         },
         orderBy: { createdAt: 'asc' }
       });
-  
-      // Update consultation status if first message
-      if (messages.length === 0) {
-        await prisma.consultation.update({
-          where: { id: consultationId },
-          data: { status: 'IN_PROGRESS' }
-        });
-  
-        // Send initial system message
-        await prisma.message.create({
-          data: {
-            consultationId,
-            content: `Consultation started with Dr. ${consultation.doctor.fullName}`,
-            type: 'SYSTEM'
-          }
-        });
-      }
   
       res.json({
         consultation: {
@@ -396,8 +398,10 @@ const getConsultations = async (req, res) => {
           isDoctor: consultation.doctor.userId === userId
         },
         messages,
-        chatEnabled: true
+        // Only enable chat for non-completed consultations
+        chatEnabled: consultation.status !== ConsultationStatus.COMPLETED
       });
+  
     } catch (error) {
       console.error('Start consultation error:', error);
       res.status(500).json({ message: error.message });

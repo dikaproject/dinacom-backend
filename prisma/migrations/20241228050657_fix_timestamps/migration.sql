@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE `layanankesehatan` MODIFY `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3);
