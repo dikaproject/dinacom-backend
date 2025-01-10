@@ -30,7 +30,8 @@ const getArticleById = async (req, res) => {
 
 const createArticle = async (req, res) => {
     try {
-        const { thumbnail, title, content, slug, categories } = req.body;
+        const { title, content, slug, categories } = req.body;
+        const thumbnail = req.file?.filename;
 
         const generatedSlug = slug || title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
@@ -61,7 +62,8 @@ const createArticle = async (req, res) => {
 const updateArticle = async (req, res) => {
     try {
         const { id } = req.params;
-        const { thumbnail, title, content, slug, categories } = req.body;
+        const { title, content, slug, categories } = req.body;
+        const thumbnail = req.file?.filename;
 
         const generatedSlug = slug || title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 

@@ -47,7 +47,8 @@ const getProductById = async (req, res) => {
 
 const createProduct = async (req, res) => {
     try {
-        const { thumbnail, title, slug, description, price, categoryId } = req.body;
+        const { title, slug, description, price, categoryId } = req.body;
+        const thumbnail = req.file?.filename;
 
         const generatedSlug = slug || title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
@@ -77,7 +78,8 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const { thumbnail, title, slug, description, price, categoryId } = req.body;
+        const { title, slug, description, price, categoryId } = req.body;
+        const thumbnail = req.file?.filename;
 
         const generatedSlug = slug || title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
