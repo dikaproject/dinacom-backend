@@ -33,10 +33,8 @@ const createArticle = async (req, res) => {
         const { title, content, slug, categories } = req.body;
         const thumbnail = req.file?.filename;
 
-        const generatedSlug = slug || title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-
         const existingArticle = await prisma.article.findUnique({
-            where: { slug: generatedSlug },
+            where: { slug },
         });
         if (existingArticle) {
             return res.status(400).json({ message: 'Slug already exists.' });
@@ -47,7 +45,7 @@ const createArticle = async (req, res) => {
                 thumbnail,
                 title,
                 content,
-                slug: generatedSlug,
+                slug,
                 categories: {
                     connect: categories.map((category) => ({ slug: category.slug })),
                 },
@@ -65,10 +63,8 @@ const updateArticle = async (req, res) => {
         const { title, content, slug, categories } = req.body;
         const thumbnail = req.file?.filename;
 
-        const generatedSlug = slug || title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-
         const existingArticle = await prisma.article.findUnique({
-            where: { slug: generatedSlug },
+            where: { slug },
         });
 
         if (existingArticle && existingArticle.id !== id) {
@@ -81,9 +77,9 @@ const updateArticle = async (req, res) => {
                 thumbnail,
                 title,
                 content,
-                slug: generatedSlug,
+                slug,
                 categories: {
-                    set: [], // Disconnect all current categories
+                    set: [], 
                     connect: categories.map((category) => ({ slug: category.slug })),
                 },
             },

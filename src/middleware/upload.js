@@ -55,13 +55,13 @@ const paymentUpload = multer({
 const thumbnailArticleUpload = multer({
   storage: createStorage('article'),
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: documentFilter
+  fileFilter: imageFilter
 });
 
 const productUpload = multer({
   storage: createStorage('product'),
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: documentFilter
+  fileFilter: imageFilter
 });
 
 module.exports = {
