@@ -124,10 +124,29 @@ const deleteProduct = async (req, res) => {
     }
 };
 
+const getProductBySlug = async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const product = await prisma.product.findUnique({
+        where: { slug },
+        include: { category: true },
+      });
+  
+      if (!product) {
+        return res.status(404).json({ message: 'Product not found' });
+      }
+  
+      res.json(product);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
+
 module.exports = {
     getAllProduct,
     getProductById,
     createProduct,
     updateProduct,
     deleteProduct,
+    getProductBySlug,
 };

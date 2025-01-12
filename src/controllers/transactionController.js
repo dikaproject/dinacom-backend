@@ -4,7 +4,7 @@ const snap = require('../utils/midtrans');
 
 const createTransaction = async (req, res) => {
     try {
-        const { cartId } = req.body;
+        const { cartId, shippingAddressId } = req.body;
         const userId = req.user.id;
 
         const cart = await prisma.cart.findFirst({
@@ -20,16 +20,29 @@ const createTransaction = async (req, res) => {
             return res.status(404).json({ message: 'Cart tidak ditemukan atau kosong' });
         }
 
-        const totalPrice = cart.cartProducts.reduce((sum, cartProduct) => {
+        // Calculate fees
+        const subtotal = cart.cartProducts.reduce((sum, cartProduct) => {
             return sum + cartProduct.quantity * cartProduct.product.price;
         }, 0);
+
+        const platformFee = Math.round(subtotal * 0.05); // 5% platform fee
+        const tax = Math.round(subtotal * 0.12); // 12% tax
+        const shippingCost = 10000; // Fixed shipping cost
+        const totalAmount = subtotal + platformFee + tax + shippingCost;
 
         const transaction = await prisma.transaction.create({
             data: {
                 userId,
                 cartId,
-                totalPrice,
-                status: 'PENDING',
+                shippingAddressId,
+                subtotal,
+                platformFee,
+                tax,
+                shippingCost,
+                totalAmount,
+                paymentStatus: 'PENDING',
+                paymentMethod: 'MIDTRANS',
+                expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours expiry
             },
         });
 
@@ -40,92 +53,50 @@ const createTransaction = async (req, res) => {
             name: cartProduct.product.title,
         }));
 
+        // Add fee items
+        itemDetails.push(
+            {
+                id: 'platform-fee',
+                price: platformFee,
+                quantity: 1,
+                name: 'Platform Fee',
+            },
+            {
+                id: 'tax',
+                price: tax,
+                quantity: 1,
+                name: 'Tax',
+            },
+            {
+                id: 'shipping',
+                price: shippingCost,
+                quantity: 1,
+                name: 'Shipping Cost',
+            }
+        );
+
         const midtransTransaction = await snap.createTransaction({
             transaction_details: {
                 order_id: transaction.id,
-                gross_amount: Math.round(totalPrice),
+                gross_amount: Math.round(totalAmount)
             },
             customer_details: {
                 first_name: req.user.name,
-                email: req.user.email,
+                email: req.user.email
             },
-            item_details: itemDetails,
-        });
-
-        await prisma.cartProduct.deleteMany({
-            where: { cartId },
+            item_details: itemDetails
         });
 
         res.status(201).json({
             message: 'Transaksi berhasil dibuat',
             data: {
                 transaction,
-                snapToken: midtransTransaction.token,
-            },
+                token: midtransTransaction.token // Change snapToken to token
+            }
         });
     } catch (error) {
         console.error('Error membuat transaksi:', error);
         res.status(500).json({ message: 'Terjadi kesalahan saat membuat transaksi' });
-    }
-};
-const handleMidtransNotification = async (req, res) => {
-    try {
-        const notification = await snap.transaction.notification(req.body);
-        const orderId = notification.order_id;
-        const transactionStatus = notification.transaction_status;
-        const fraudStatus = notification.fraud_status;
-
-        const transaction = await prisma.transaction.findUnique({
-            where: { id: orderId },
-            include: {
-                cart: {
-                    include: {
-                        cartProducts: {
-                            include: {
-                                product: true,
-                            },
-                        },
-                    },
-                },
-            },
-        });
-
-        if (!transaction) {
-            return res.status(404).json({ message: 'Transaction not found' });
-        }
-
-        let paymentStatus;
-        if (transactionStatus === 'capture' || transactionStatus === 'settlement') {
-            if (fraudStatus === 'accept') {
-                paymentStatus = 'PAID';
-            }
-        } else if (['cancel', 'deny', 'expire'].includes(transactionStatus)) {
-            paymentStatus = 'FAILED';
-        }
-
-        if (paymentStatus) {
-            await prisma.$transaction([
-                prisma.transaction.update({
-                    where: { id: orderId },
-                    data: {
-                        status: paymentStatus,
-                        paidAt: paymentStatus === 'PAID' ? new Date() : null,
-                        midtransId: notification.transaction_id,
-                    },
-                }),
-                prisma.cart.update({
-                    where: { id: transaction.cartId },
-                    data: {
-                        status: paymentStatus === 'PAID' ? 'CONFIRMED' : 'PENDING',
-                    },
-                }),
-            ]);
-        }
-
-        res.json({ message: 'OK' });
-    } catch (error) {
-        console.error('Midtrans notification error:', error);
-        res.status(500).json({ message: error.message });
     }
 };
 
@@ -177,11 +148,55 @@ const getHistoryTransaction = async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, message: 'Terjadi kesalahan', error });
     }
-}
+};
+
+const cancelTransaction = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const transaction = await prisma.transaction.findFirst({
+            where: { 
+                id,
+                userId,
+                paymentStatus: 'PENDING',
+            }
+        });
+
+        if (!transaction) {
+            return res.status(404).json({ 
+                message: 'Transaction not found or already processed' 
+            });
+        }
+
+        // Update transaction status
+        const updatedTransaction = await prisma.transaction.update({
+            where: { id },
+            data: {
+                paymentStatus: 'CANCELLED',
+                status: 'CANCELLED',
+                updatedAt: new Date()
+            }
+        });
+
+        // No need to update cart status since it's still active
+        res.json({ 
+            message: 'Transaction cancelled successfully',
+            transaction: updatedTransaction
+        });
+    } catch (error) {
+        console.error('Cancel transaction error:', error);
+        res.status(500).json({ 
+            message: 'Failed to cancel transaction',
+            error: error.message 
+        });
+    }
+};
 
 module.exports = {
     getTransaction,
     getTransactionById,
     createTransaction,
-    handleMidtransNotification
+    getHistoryTransaction,
+    cancelTransaction
 };

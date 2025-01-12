@@ -3,12 +3,12 @@ const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const { 
     createTransaction,
-    handleMidtransNotification, 
-    getTransaction
+    getTransaction,
+    cancelTransaction
 } = require('../controllers/transactionController');
 
 router.get('/', authMiddleware, getTransaction);
 router.post('/midtrans', authMiddleware, createTransaction);
-router.post('/midtrans/notification', handleMidtransNotification);
+router.post('/:id/cancel', authMiddleware, cancelTransaction);
 
 module.exports = router;
