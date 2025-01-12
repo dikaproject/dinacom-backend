@@ -18,7 +18,8 @@ const pregnancyRoutes = require('./routes/pregnancy');
 const communityChatRoutes = require('./routes/comunityChat');
 const doctorScheduleRoutes = require('./routes/doctorSchedule');
 const doctorRoutes = require('./routes/doctor');
-const userAdminRoutes = require('./routes/userAdmin');
+const adminRoutes = require('./routes/admin')
+// const userAdminRoutes = require('./routes/userAdmin');
 const { setupCronJobs } = require('./utils/cron');
 
 
@@ -27,7 +28,6 @@ const productCategoryRoutes = require('./routes/productCategory');
 const productRoutes = require('./routes/product');
 const cartProductRoutes = require('./routes/cart')
 const transactionRoutes = require('./routes/transaction');
-const doctorRoutes = require('./routes/doctor');
 
 const app = express();
 const httpServer = createServer(app);
@@ -62,6 +62,7 @@ app.use('/api/payments', paymentRoutes);
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/doctor', doctorRoutes);
+app.use('/api/admin', adminRoutes)
 // Update route ordering - put messages before consultation
 app.use('/api/messages', messageRoutes);
 app.use('/api/consultation', consultationRoutes);
@@ -79,7 +80,7 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/settings/doctor', require('./routes/settingsDoctor'));
 app.use('/api/webhooks/whatsapp', require('./routes/whatsapp/webhooks'));
 app.use('/api/doctor-schedules', doctorScheduleRoutes);
-app.use('/api/user-admin', userAdminRoutes);
+// app.use('/api/user-admin', userAdminRoutes);
 console.log('Initializing cron jobs...');
 
 setupCronJobs();
