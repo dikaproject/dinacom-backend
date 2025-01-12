@@ -279,60 +279,93 @@ const createMidtransPayment = async (req, res) => {
   }
 };
   
-  const handleMidtransNotification = async (req, res) => {
-    try {
-      const notification = await snap.transaction.notification(req.body);
-      const orderId = notification.order_id;
-      const transactionStatus = notification.transaction_status;
-      const fraudStatus = notification.fraud_status;
-  
-      const payment = await prisma.payment.findUnique({
+const handleMidtransNotification = async (req, res) => {
+  try {
+    const notification = await snap.transaction.notification(req.body);
+    console.log('Midtrans Notification:', notification);
+
+    const orderId = notification.order_id;
+    const transactionStatus = notification.transaction_status;
+    const fraudStatus = notification.fraud_status;
+
+    // Find in both tables
+    const [productTransaction, consultationPayment] = await Promise.all([
+      prisma.transaction.findUnique({
         where: { id: orderId },
-        include: {
-          consultation: true
-        }
-      });
-  
-      if (!payment) {
-        return res.status(404).json({ message: 'Payment not found' });
-      }
-  
-      let paymentStatus;
-      if (transactionStatus === 'capture' || transactionStatus === 'settlement') {
-        if (fraudStatus === 'accept') {
-          paymentStatus = 'PAID';
-        }
-      } else if (transactionStatus === 'cancel' || 
-                 transactionStatus === 'deny' || 
-                 transactionStatus === 'expire') {
-        paymentStatus = 'FAILED';
-      }
-  
-      if (paymentStatus) {
-        await prisma.$transaction([
-          prisma.payment.update({
-            where: { id: orderId },
-            data: {
-              paymentStatus,
-              paidAt: paymentStatus === 'PAID' ? new Date() : null,
-              midtransId: notification.transaction_id
-            }
+        include: { cart: true }
+      }),
+      prisma.payment.findUnique({
+        where: { id: orderId },
+        include: { consultation: true }
+      })
+    ]);
+
+    let paymentStatus;
+    if (transactionStatus === 'capture' || transactionStatus === 'settlement') {
+      paymentStatus = fraudStatus === 'accept' ? 'PAID' : 'FAILED';
+    } else if (['cancel', 'deny', 'expire'].includes(transactionStatus)) {
+      paymentStatus = 'FAILED';
+    } else if (transactionStatus === 'pending') {
+      paymentStatus = 'PENDING';
+    }
+
+    console.log('Processing payment status:', paymentStatus);
+
+    if (productTransaction) {
+      // Update transaction and clear cart if payment is successful
+      await prisma.$transaction([
+        prisma.transaction.update({
+          where: { id: orderId },
+          data: {
+            paymentStatus,
+            paidAt: paymentStatus === 'PAID' ? new Date() : null,
+            midtransId: notification.transaction_id,
+            updatedAt: new Date()
+          }
+        }),
+        // If payment is successful, clear the cart
+        ...(paymentStatus === 'PAID' ? [
+          prisma.cartProduct.deleteMany({
+            where: { cartId: productTransaction.cartId }
           }),
-          prisma.consultation.update({
-            where: { id: payment.consultationId },
+          prisma.cart.update({
+            where: { id: productTransaction.cartId },
             data: { 
-              status: paymentStatus === 'PAID' ? 'CONFIRMED' : 'PENDING'
+              status: 'COMPLETED',
+              updatedAt: new Date()
             }
           })
-        ]);
-      }
-  
-      res.json({ message: 'OK' });
-    } catch (error) {
-      console.error('Midtrans notification error:', error);
-      res.status(500).json({ message: error.message });
+        ] : [])
+      ]);
+    } else if (consultationPayment) {
+      // Update consultation payment
+      await prisma.$transaction([
+        prisma.payment.update({
+          where: { id: orderId },
+          data: {
+            paymentStatus,
+            paidAt: paymentStatus === 'PAID' ? new Date() : null,
+            midtransId: notification.transaction_id,
+            updatedAt: new Date()
+          }
+        }),
+        prisma.consultation.update({
+          where: { id: consultationPayment.consultationId },
+          data: {
+            status: paymentStatus === 'PAID' ? 'CONFIRMED' : 'PENDING',
+            updatedAt: new Date()
+          }
+        })
+      ]);
     }
-  };
+
+    console.log('Payment processed successfully');
+    res.json({ message: 'OK' });
+  } catch (error) {
+    console.error('Midtrans notification error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
 
 module.exports = {
   createPayment,

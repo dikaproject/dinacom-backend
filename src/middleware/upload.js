@@ -64,10 +64,52 @@ const productUpload = multer({
   fileFilter: imageFilter
 });
 
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    if (file.fieldname === 'photoProfile') {
+      cb(null, 'uploads/profiles');
+    } else if (file.fieldname === 'documentsProof') {
+      cb(null, 'uploads/documents');
+    }
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.fieldname === 'photoProfile') {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Not an image file'));
+    }
+  } else if (file.fieldname === 'documentsProof') {
+    if (file.mimetype.startsWith('image/') || 
+        file.mimetype === 'application/pdf' || 
+        file.mimetype === 'application/msword' ||
+        file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type'));
+    }
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  }
+});
+
 module.exports = {
   profileUpload,
   documentsUpload,
   paymentUpload,
   thumbnailArticleUpload,
-  productUpload
+  productUpload,
+  upload
 };

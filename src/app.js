@@ -60,6 +60,7 @@ app.use('/api/payments', paymentRoutes);
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/doctor', doctorRoutes);
+app.use('/api/admin', adminRoutes)
 // Update route ordering - put messages before consultation
 app.use('/api/messages', messageRoutes);
 app.use('/api/consultation', consultationRoutes);
