@@ -18,8 +18,6 @@ const pregnancyRoutes = require('./routes/pregnancy');
 const communityChatRoutes = require('./routes/comunityChat');
 const doctorScheduleRoutes = require('./routes/doctorSchedule');
 const doctorRoutes = require('./routes/doctor');
-const adminRoutes = require('./routes/admin')
-// const userAdminRoutes = require('./routes/userAdmin');
 const { setupCronJobs } = require('./utils/cron');
 
 
@@ -80,7 +78,6 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/settings/doctor', require('./routes/settingsDoctor'));
 app.use('/api/webhooks/whatsapp', require('./routes/whatsapp/webhooks'));
 app.use('/api/doctor-schedules', doctorScheduleRoutes);
-// app.use('/api/user-admin', userAdminRoutes);
 console.log('Initializing cron jobs...');
 
 setupCronJobs();
