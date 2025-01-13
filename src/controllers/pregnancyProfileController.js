@@ -51,13 +51,14 @@ const createProfile = async (req, res) => {
       address,
       bloodType,
       height,
-      pregnancyStartDate, // Changed from dueDate
+      pregnancyStartDate,
     } = req.body;
 
-    // Calculate due date from start date
+    // Handle photo profile
+    const photoProfile = req.file?.filename;
+
+    // Calculate due date and pregnancy details...
     const dueDate = calculateDueDate(pregnancyStartDate);
-    
-    // Calculate pregnancy week
     const pregnancyWeek = calculatePregnancyWeek(dueDate);
     const trimester = determinePregnancyWeek(pregnancyWeek);
 
@@ -65,13 +66,14 @@ const createProfile = async (req, res) => {
       data: {
         userId: req.user.id,
         fullName,
+        photoProfile,
         dateOfBirth: new Date(dateOfBirth),
         phoneNumber,
         reminderTime: parseTime(reminderTime),
         address,
         bloodType,
         height: height ? parseFloat(height) : null,
-        dueDate, // Save calculated due date
+        dueDate,
         pregnancyStartDate: new Date(pregnancyStartDate),
         pregnancyWeek,
         trimester,
