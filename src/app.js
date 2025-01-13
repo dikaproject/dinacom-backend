@@ -20,6 +20,7 @@ const doctorScheduleRoutes = require('./routes/doctorSchedule');
 const doctorRoutes = require('./routes/doctor');
 const userAdminRoutes = require('./routes/userAdmin');
 const patientAdminRoutes = require('./routes/patient');
+const adminRoutes = require('./routes/admin')
 const { setupCronJobs } = require('./utils/cron');
 
 
@@ -46,6 +47,7 @@ app.use('/api/uploads', express.static('uploads'));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/doctor', doctorRoutes);
+app.use('/api/admin', adminRoutes)
 app.use('/api/consultation', consultationRoutes);
 app.use('/api/doctor-verification', doctorVerificationRoutes);
 app.use('/api/layanan-kesehatan', layananKesehatanRoutes);

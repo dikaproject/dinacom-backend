@@ -72,6 +72,17 @@ const createPatient = async (req, res) => {
         const profile = JSON.parse(req.body.profile);
         const photoProfile = req.file?.filename;
 
+        // Check if email already exists
+        const existingUser = await prisma.user.findUnique({
+            where: { email }
+        });
+
+        if (existingUser) {
+            return res.status(400).json({ 
+                message: 'Email already registered' 
+            });
+        }
+
         // Calculate pregnancy info
         const dueDate = calculateDueDate(profile.pregnancyStartDate);
         const pregnancyWeek = calculatePregnancyWeek(dueDate);
@@ -101,7 +112,7 @@ const createPatient = async (req, res) => {
                             trimester,
                             isWhatsappActive: false,
                             lastReminderSent: null,
-                            ...(photoProfile && { photo: photoProfile }) // Assuming field is named 'photo'
+                            photoProfile: photoProfile || null
                         }
                     }
                 },
@@ -123,6 +134,11 @@ const createPatient = async (req, res) => {
         res.status(201).json(result);
     } catch (error) {
         console.error('Create patient error:', error);
+        if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
+            return res.status(400).json({ 
+                message: 'Email already registered' 
+            });
+        }
         res.status(500).json({ message: error.message });
     }
 };
