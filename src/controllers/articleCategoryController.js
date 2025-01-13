@@ -6,6 +6,7 @@ const getAllArticleCategory = async (req, res) => {
         const ArticleCategory = await prisma.ArticleCategory.findMany();
         res.json(ArticleCategory);
     } catch (error) {
+        console.log('Error fetching Article Category:', error);
         res.status(500).json({ message: error.message });
     }
 };

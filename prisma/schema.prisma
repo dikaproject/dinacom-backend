@@ -20,7 +20,6 @@ enum ConsultationStatus {
   CONFIRMED
   COMPLETED
   CANCELLED
-  IN_PROGRESS
 }
 
 enum NotificationType {
@@ -41,7 +40,6 @@ enum PaymentStatus {
   PAID
   EXPIRED
   FAILED
-  CANCELLED
 }
 
 enum PaymentMethod {
@@ -100,7 +98,6 @@ model PregnantProfile {
   userId           String            @unique
   user             User              @relation(fields: [userId], references: [id])
   fullName         String
-  photoProfile     String?          // Add this field
   dateOfBirth      DateTime
   phoneNumber      String
   reminderTime     DateTime        // Preferred daily reminder time
@@ -149,7 +146,7 @@ model DailyCheckup {
   symptoms        Json?            // Changed from String[] to Json
   notes           String?         @db.Text
   createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 }
 model NutritionLog {
   id          String          @id @default(uuid())
@@ -164,7 +161,7 @@ model NutritionLog {
   fats        Float
   notes       String?        @db.Text
   createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
 
 model ExerciseLog {
@@ -178,7 +175,7 @@ model ExerciseLog {
   heartRate       Int?
   notes           String?        @db.Text
   createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 }
 
 model AIRecommendation {
@@ -191,7 +188,7 @@ model AIRecommendation {
   recommendation  Json
   analysis        String         @db.Text
   createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 }
 
 model Payment {
@@ -254,7 +251,7 @@ model Notification {
   type      NotificationType
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
-  updatedAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 }
 
 model Doctor {
@@ -352,58 +349,30 @@ model Product {
 model Cart {
   id              String            @id @default(uuid())
   userId          String
-  status          String            @default("ACTIVE")
   cartProducts    CartProduct[]
   transactions    Transaction[]     @relation("CartTransactions") 
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
 
-model ShippingAddress {
-  id          String    @id @default(uuid())
-  userId      String
-  fullName    String
-  phoneNumber String
-  province    String
-  city        String
-  district    String
-  address     String    @db.Text
-  postalCode  String
-  isDefault   Boolean   @default(false)
-  transactions Transaction[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
 model CartProduct {
-  id              String    @id @default(uuid())
+  id              String            @id @default(uuid())
   cartId          String
   productId       String
   quantity        Int
-  basePrice       Float    // Original product price
-  subtotal        Float    // basePrice * quantity
-  cart            Cart     @relation(fields: [cartId], references: [id])
-  product         Product  @relation(fields: [productId], references: [id])
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @default(now())
+  cart            Cart              @relation(fields: [cartId], references: [id])
+  product         Product           @relation(fields: [productId], references: [id])
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
 
 model Transaction {
   id              String            @id @default(uuid())
   userId          String
   cartId          String
-  shippingAddressId String
-  shippingAddress ShippingAddress   @relation(fields: [shippingAddressId], references: [id])
-  subtotal        Float            
-  platformFee     Float            
-  tax             Float            
-  shippingCost    Float            
-  totalAmount     Float            
-  paymentStatus   PaymentStatus    @default(PENDING)
-  paymentMethod   PaymentMethod?
-  midtransId      String?       
-  cart            Cart             @relation(fields: [cartId], references: [id], name: "CartTransactions")
-  expiredAt       DateTime?
-  paidAt          DateTime?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  totalPrice      Float
+  status          TransactionStatus @default(PENDING)
+  cart            Cart              @relation(fields: [cartId], references: [id], name: "CartTransactions")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
