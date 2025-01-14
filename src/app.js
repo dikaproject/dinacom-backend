@@ -34,15 +34,34 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: process.env.NODE_ENV === 'production' 
+      ? ["https://dinacom.intechofficial.com"]
+      : ["http://localhost:3000"],
     methods: ["GET", "POST"],
     credentials: true
   },
-  pingInterval: 10000,
-  pingTimeout: 5000,
-  transports: ['polling', 'websocket'], // Change order to try polling first
+  path: '/socket.io',
+  transports: ['polling', 'websocket'],
   allowEIO3: true,
-  path: '/socket.io' // Explicitly set the path
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 30000,
+  allowUpgrades: true,
+  cookie: process.env.NODE_ENV === 'production' ? {
+    name: "io",
+    path: "/",
+    httpOnly: true,
+    sameSite: "strict",
+    secure: true
+  } : false
+});
+
+// Add connection logging
+io.engine.on("connection_error", (err) => {
+  console.log('Connection error:', err.req);
+  console.log('Error code:', err.code);
+  console.log('Error message:', err.message);
+  console.log('Error context:', err.context);
 });
 
 // Add this before socket.io connection handling
