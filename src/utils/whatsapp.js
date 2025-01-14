@@ -44,7 +44,6 @@ const sendDailyReminder = async (profile) => {
   1️⃣ Record weight & symptoms ( daily checkup )
   2️⃣ Log today's meals ( nutrition )
   3️⃣ Track exercise ( fitness )
-  4️⃣ View recommendations ( insights )
   
   Stay healthy! 💪`;
   
@@ -56,7 +55,6 @@ const sendDailyReminder = async (profile) => {
   1️⃣ Catat berat badan & gejala ( ceckup harian )
   2️⃣ Catat makanan hari ini ( nutrisi )
   3️⃣ Catat olahraga ( kebugaran )
-  4️⃣ Lihat rekomendasi ( informasi )
   
   Jaga kesehatan! 💪`;
   
