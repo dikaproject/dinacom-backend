@@ -40,6 +40,18 @@ const register = async (req, res) => {
 
 const registerDoctor = async (req, res) => {
   try {
+    // Log incoming request
+    console.log('Register doctor request:', {
+      body: req.body,
+      files: req.files
+    });
+
+    if (!req.files || !req.files.photoProfile || !req.files.documentsProof) {
+      return res.status(400).json({ 
+        message: 'Both profile photo and documents are required' 
+      });
+    }
+
     const {
       email,
       password,
@@ -71,9 +83,9 @@ const registerDoctor = async (req, res) => {
       });
     }
 
-    // Check if email exists
+    // Check email exists
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email }
     });
 
     if (existingUser) {
@@ -93,55 +105,66 @@ const registerDoctor = async (req, res) => {
     const photoProfile = req.files?.photoProfile?.[0]?.filename;
     const documentsProof = req.files?.documentsProof?.[0]?.filename;
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        role: 'DOCTOR',
-        doctor: {
-          create: {
-            fullName,
-            strNumber,
-            sipNumber,
-            phoneNumber,
-            provinsi,
-            kabupaten,
-            kecamatan,
-            address,
-            codePos,
-            educationBackground,
-            photoProfile,
-            documentsProof,
-            layananKesehatan: {
-              connect: { id: layananKesehatanId }
+    try {
+      const user = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          role: 'DOCTOR',
+          doctor: {
+            create: {
+              fullName,
+              strNumber,
+              sipNumber,
+              phoneNumber,
+              provinsi,
+              kabupaten,
+              kecamatan,
+              address,
+              codePos,
+              educationBackground,
+              photoProfile,
+              documentsProof,
+              layananKesehatan: {
+                connect: { id: layananKesehatanId }
+              }
+            },
+          },
+        },
+        include: {
+          doctor: {
+            include: {
+              layananKesehatan: true
             }
           },
         },
-      },
-      include: {
-        doctor: {
-          include: {
-            layananKesehatan: true
-          }
-        },
-      },
-    });
+      });
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
 
-    res.status(201).json({
-      message: 'Doctor registered successfully',
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        doctor: user.doctor
-      }
-    });
+      res.status(201).json({
+        message: 'Doctor registered successfully',
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          doctor: user.doctor
+        }
+      });
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+      return res.status(500).json({ 
+        message: 'Database error during registration',
+        error: dbError.message 
+      });
+    }
   } catch (error) {
     console.error('Register doctor error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      message: 'Internal server error during registration',
+      error: error.message 
+    });
   }
 };
 
