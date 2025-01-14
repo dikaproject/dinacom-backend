@@ -38,9 +38,11 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"],
     credentials: true
   },
-  pingTimeout: 60000,
-  transports: ['websocket', 'polling'],
-  allowEIO3: true
+  pingInterval: 10000,
+  pingTimeout: 5000,
+  transports: ['polling', 'websocket'], // Change order to try polling first
+  allowEIO3: true,
+  path: '/socket.io' // Explicitly set the path
 });
 
 // Add this before socket.io connection handling
@@ -86,23 +88,50 @@ setupCronJobs();
 
 // Socket.IO for Consultation Chat
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  // Add connection logging
+  console.log('New client connected:', socket.id);
 
-  // Join Consultation Room
-  socket.on('join_consultation', (consultationId) => {
-    socket.join(consultationId);
-    console.log(`Socket ${socket.id} joined consultation: ${consultationId}`);
+  // Send immediate ping to verify connection
+  socket.emit('connection_established', { id: socket.id });
+
+  // Add heartbeat mechanism
+  const heartbeat = setInterval(() => {
+    socket.emit('ping');
+  }, 25000);
+
+  socket.on('join_consultation', async (consultationId) => {
+    try {
+      // Verify consultation exists and user has access
+      const consultation = await prisma.consultation.findUnique({
+        where: { id: consultationId }
+      });
+
+      if (!consultation) {
+        socket.emit('error', { message: 'Consultation not found' });
+        return;
+      }
+
+      socket.join(consultationId);
+      console.log(`Client ${socket.id} joined consultation: ${consultationId}`);
+    } catch (error) {
+      console.error('Join consultation error:', error);
+      socket.emit('error', { message: 'Failed to join consultation' });
+    }
   });
 
-  socket.on('send_message', async (data) => {
-    const { consultationId, content, senderId } = data;
-
+  socket.on('send_message', async (data, callback) => {
     try {
+      // Add validation
+      if (!data.consultationId || !data.content || !data.senderId) {
+        callback({ error: 'Invalid message data' });
+        return;
+      }
+
       const message = await prisma.message.create({
         data: {
-          consultationId,
-          senderId,
-          content,
+          consultationId: data.consultationId,
+          senderId: data.senderId,
+          content: data.content,
         },
         include: {
           sender: {
@@ -116,10 +145,11 @@ io.on('connection', (socket) => {
         },
       });
 
-      io.to(consultationId).emit('receive_message', message);
+      io.to(data.consultationId).emit('receive_message', message);
+      callback({ success: true }); // Send success acknowledgment
     } catch (error) {
       console.error('Message error:', error);
-      socket.emit('message_error', { error: error.message });
+      callback({ error: error.message });
     }
   });
 
@@ -155,8 +185,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle client disconnect
+  // Cleanup on disconnect
   socket.on('disconnect', () => {
+    clearInterval(heartbeat);
     console.log('Client disconnected:', socket.id);
   });
 });

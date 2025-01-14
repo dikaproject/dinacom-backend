@@ -4,6 +4,25 @@ const prisma = new PrismaClient();
 const getMessages = async (req, res) => {
   try {
     const { consultationId } = req.params;
+    
+    const consultation = await prisma.consultation.findUnique({
+      where: { id: consultationId },
+      select: {
+        status: true,
+        type: true,
+        schedule: true
+      }
+    });
+
+    if (!consultation) {
+      return res.status(404).json({ message: 'Consultation not found' });
+    }
+
+    // Modify chat availability check to allow access until consultation is marked as completed
+    const chatEnabled = consultation.status === 'CONFIRMED' || 
+                       consultation.status === 'IN_PROGRESS' && 
+                       consultation.type === 'ONLINE';
+
     const messages = await prisma.message.findMany({
       where: { consultationId },
       include: {
@@ -18,7 +37,12 @@ const getMessages = async (req, res) => {
       },
       orderBy: { createdAt: 'asc' }
     });
-    res.json(messages);
+
+    res.json({
+      chatEnabled,
+      messages,
+      consultation
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
