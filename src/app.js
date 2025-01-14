@@ -21,6 +21,7 @@ const doctorRoutes = require('./routes/doctor');
 const userAdminRoutes = require('./routes/userAdmin');
 const patientAdminRoutes = require('./routes/patient');
 const adminRoutes = require('./routes/admin')
+const historyTransactionRoutes = require('./routes/historyTransaction');
 const { setupCronJobs } = require('./utils/cron');
 
 
@@ -94,6 +95,7 @@ app.use('/api/webhooks/whatsapp', require('./routes/whatsapp/webhooks'));
 app.use('/api/doctor-schedules', doctorScheduleRoutes);
 app.use('/api/user-admin', userAdminRoutes);
 app.use('/api/patients-admin', patientAdminRoutes);
+app.use('/api/transactions/history', historyTransactionRoutes);  // Update this line
 console.log('Initializing cron jobs...');
 
 setupCronJobs();

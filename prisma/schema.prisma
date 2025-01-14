@@ -387,6 +387,17 @@ model CartProduct {
   updatedAt       DateTime @default(now())
 }
 
+model TransactionProduct {
+  id            String      @id @default(uuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  productId     String
+  productTitle  String      // Store product title at time of purchase
+  quantity      Int
+  price         Float       // Store price at time of purchase
+  createdAt     DateTime    @default(now())
+}
+
 model Transaction {
   id              String            @id @default(uuid())
   userId          String
@@ -402,6 +413,7 @@ model Transaction {
   paymentMethod   PaymentMethod?
   midtransId      String?       
   cart            Cart             @relation(fields: [cartId], references: [id], name: "CartTransactions")
+  products          TransactionProduct[]
   expiredAt       DateTime?
   paidAt          DateTime?
   createdAt       DateTime         @default(now())

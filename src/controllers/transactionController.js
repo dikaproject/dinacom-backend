@@ -46,12 +46,29 @@ const createTransaction = async (req, res) => {
             },
         });
 
+        // Store products in TransactionProduct
+        const transactionProducts = await Promise.all(
+            cart.cartProducts.map(cartProduct => 
+                prisma.transactionProduct.create({
+                    data: {
+                        transactionId: transaction.id,
+                        productId: cartProduct.product.id,
+                        productTitle: cartProduct.product.title,
+                        quantity: cartProduct.quantity,
+                        price: cartProduct.product.price
+                    }
+                })
+            )
+        );
+
         const itemDetails = cart.cartProducts.map((cartProduct) => ({
             id: cartProduct.product.id,
             price: Math.round(cartProduct.product.price),
             quantity: cartProduct.quantity,
             name: cartProduct.product.title,
         }));
+
+        
 
         // Add fee items
         itemDetails.push(

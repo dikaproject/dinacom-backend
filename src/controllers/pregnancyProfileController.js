@@ -20,12 +20,14 @@ const calculatePregnancyWeek = (dueDate) => {
 };
 
 function parseTime(timeString) {
-  // Set to Jakarta timezone
-  const date = new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"});
+  // Create date object in UTC
+  const date = new Date();
   const [hour, minute] = timeString.split(':');
-  const dateObj = new Date(date);
-  dateObj.setHours(parseInt(hour, 10), parseInt(minute, 10), 0, 0);
-  return dateObj;
+  
+  // Set UTC hours directly
+  date.setUTCHours(parseInt(hour, 10), parseInt(minute, 10), 0, 0);
+  
+  return date;
 }
 
 const determinePregnancyWeek = (weekNumber) => {
@@ -56,6 +58,7 @@ const createProfile = async (req, res) => {
 
     // Handle photo profile
     const photoProfile = req.file?.filename;
+    const parsedReminderTime = parseTime(reminderTime);
 
     // Calculate due date and pregnancy details...
     const dueDate = calculateDueDate(pregnancyStartDate);
@@ -69,7 +72,7 @@ const createProfile = async (req, res) => {
         photoProfile,
         dateOfBirth: new Date(dateOfBirth),
         phoneNumber,
-        reminderTime: parseTime(reminderTime),
+        reminderTime: parsedReminderTime,
         address,
         bloodType,
         height: height ? parseFloat(height) : null,
