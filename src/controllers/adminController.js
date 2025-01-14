@@ -70,6 +70,10 @@ const verifyDoctor = async (req, res) => {
 
 const createDoctor = async (req, res) => {
   try {
+    // Log received data
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
+
     const {
       email,
       password,
@@ -86,64 +90,72 @@ const createDoctor = async (req, res) => {
       educationBackground
     } = req.body;
 
-    // Log received files
-    console.log('Received files:', req.files);
-
-    const photoProfile = req.files?.photoProfile?.[0]?.filename;
-    const documentsProof = req.files?.documentsProof?.[0]?.filename;
-
-    // Validate required fields
-    if (!email || !password || !fullName) {
-      return res.status(400).json({ 
-        message: 'Missing required fields' 
+    // Validate files
+    if (!req.files || !req.files.photoProfile || !req.files.documentsProof) {
+      return res.status(400).json({
+        message: 'Both photoProfile and documentsProof are required',
+        receivedFiles: req.files
       });
     }
 
-    const doctor = await prisma.$transaction(async (prisma) => {
-      const user = await prisma.user.create({
-        data: {
-          email,
-          password: await bcrypt.hash(password, 10),
-          role: 'DOCTOR'
-        }
-      });
+    const photoProfile = req.files.photoProfile[0].filename;
+    const documentsProof = req.files.documentsProof[0].filename;
 
-      return prisma.doctor.create({
-        data: {
-          userId: user.id,
-          fullName,
-          strNumber,
-          sipNumber,
-          phoneNumber,
-          provinsi,
-          kabupaten,
-          kecamatan,
-          address,
-          codePos,
-          layananKesehatanId,
-          educationBackground,
-          photoProfile,
-          documentsProof,
-          verificationStatus: 'PENDING'
-        },
-        include: {
-          user: {
-            select: {
-              email: true,
-              role: true
-            }
+    try {
+      const doctor = await prisma.$transaction(async (prisma) => {
+        // Create user first
+        const user = await prisma.user.create({
+          data: {
+            email,
+            password: await bcrypt.hash(password, 10),
+            role: 'DOCTOR'
+          }
+        });
+
+        // Then create doctor profile
+        return prisma.doctor.create({
+          data: {
+            userId: user.id,
+            fullName,
+            strNumber,
+            sipNumber,
+            phoneNumber,
+            provinsi,
+            kabupaten,
+            kecamatan,
+            address,
+            codePos,
+            layananKesehatanId,
+            educationBackground,
+            photoProfile,
+            documentsProof,
+            verificationStatus: 'PENDING'
           },
-          layananKesehatan: true
-        }
+          include: {
+            user: {
+              select: {
+                email: true,
+                role: true
+              }
+            },
+            layananKesehatan: true
+          }
+        });
       });
-    });
 
-    res.status(201).json(doctor);
+      res.status(201).json(doctor);
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+      res.status(500).json({
+        message: 'Database error during doctor creation',
+        error: dbError.message
+      });
+    }
   } catch (error) {
     console.error('Create doctor error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Failed to create doctor',
-      error: error.message 
+      error: error.message
     });
   }
 };
