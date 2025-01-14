@@ -12,7 +12,8 @@ const {
   getDashboardStats,    
   getRecentOrders,      
   getRecentUsers,       
-  getDoctorSchedules    
+  getDoctorSchedules,
+  deleteDoctor
 } = require('../controllers/adminController');
 const { getAnalytics } = require('../controllers/analyticsController');
 
@@ -45,6 +46,9 @@ router.get('/users', authMiddleware, checkRole(['ADMIN']), getAllUsers);
 router.get('/doctors', authMiddleware, checkRole(['ADMIN']), getAllDoctors);
 router.patch('/doctors/:id/verify', authMiddleware, checkRole(['ADMIN']), verifyDoctor);
 router.get('/analytics', authMiddleware, checkRole(['ADMIN']), getAnalytics);
+// delete doctor
+router.delete('/doctors/:id', authMiddleware, checkRole(['ADMIN']), deleteDoctor);
+
 
 router.get('/dashboard/stats', authMiddleware, checkRole(['ADMIN']), getDashboardStats);
 router.get('/dashboard/orders', authMiddleware, checkRole(['ADMIN']), getRecentOrders);

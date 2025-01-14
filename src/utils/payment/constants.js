@@ -1,13 +1,13 @@
 const BANK_ACCOUNTS = {
   SEABANK: {
     bankName: 'Seabank',
-    accountNumber: '90xxxxxxxxxxxx',
-    accountHolder: 'Rxxa Dxxx'
+    accountNumber: '901872822066',
+    accountHolder: 'Rasya Dika Pratama'
   },
   MANDIRI: {
     bankName: 'Bank Mandiri',
-    accountNumber: '1800xxxxxx',
-    accountHolder: 'Rxxa Dxxx'
+    accountNumber: '1800011820737',
+    accountHolder: 'Rasya Dika Pratama'
   }
 };
 

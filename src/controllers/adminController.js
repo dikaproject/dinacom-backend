@@ -427,6 +427,56 @@ const getDoctorSchedules = async (req, res) => {
   }
 };
 
+const deleteDoctor = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if doctor exists
+    const doctor = await prisma.doctor.findUnique({
+      where: { id },
+      include: { user: true }
+    });
+
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor not found' });
+    }
+
+    // Delete associated files
+    if (doctor.photoProfile || doctor.documentsProof) {
+      const fs = require('fs');
+      const path = require('path');
+
+      if (doctor.photoProfile) {
+        const photoPath = path.join(__dirname, '../../uploads/profiles', doctor.photoProfile);
+        if (fs.existsSync(photoPath)) {
+          fs.unlinkSync(photoPath);
+        }
+      }
+
+      if (doctor.documentsProof) {
+        const docPath = path.join(__dirname, '../../uploads/documents', doctor.documentsProof);
+        if (fs.existsSync(docPath)) {
+          fs.unlinkSync(docPath);
+        }
+      }
+    }
+
+    // Delete doctor and associated user in transaction
+    await prisma.$transaction([
+      prisma.doctor.delete({ where: { id } }),
+      prisma.user.delete({ where: { id: doctor.userId } })
+    ]);
+
+    res.json({ message: 'Doctor deleted successfully' });
+  } catch (error) {
+    console.error('Delete doctor error:', error);
+    res.status(500).json({ 
+      message: 'Failed to delete doctor',
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getAllDoctors,
@@ -437,5 +487,6 @@ module.exports = {
   getDashboardStats,
   getRecentOrders,
   getRecentUsers,
-  getDoctorSchedules
+  getDoctorSchedules,
+  deleteDoctor,
 };
