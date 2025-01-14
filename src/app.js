@@ -34,15 +34,21 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: [
-      "http://localhost:3000",
-      "https://dinacom.intechofficial.com"
-    ],
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
     methods: ["GET", "POST"],
     credentials: true
   },
+  pingTimeout: 60000,
   transports: ['websocket', 'polling'],
   allowEIO3: true
+});
+
+// Add this before socket.io connection handling
+io.engine.on("connection_error", (err) => {
+  console.log('Connection error:', err.req);      // the request that failed
+  console.log('Error code:', err.code);     // the error code
+  console.log('Error message:', err.message);   // the error message
+  console.log('Error context:', err.context);   // some additional error context
 });
 
 // Middleware
