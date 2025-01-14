@@ -9,8 +9,8 @@ cd dinacom-backend
 
 # Install dependencies
 npm install
-npm install @prisma/client
-npx prisma migrate --dev
+npx prisma generate
+npx prisma db push
 ```
 
 ## Environment Variables
@@ -78,8 +78,6 @@ Link Demo Website : https://dinacom.intechofficial.com
 - Advanced error handling
 - Transaction rollback mechanisms
 - Ensure data integrity and consistency
-
-## Additional Resources
 
 ## Project Setup Checklist
 
