@@ -40,30 +40,24 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"],
     credentials: true
   },
-  path: '/socket.io',
-  transports: ['polling', 'websocket'],
   allowEIO3: true,
+  path: '/socket.io/',
+  transports: ['websocket', 'polling'],
   pingTimeout: 60000,
   pingInterval: 25000,
   upgradeTimeout: 30000,
-  allowUpgrades: true,
-  cookie: process.env.NODE_ENV === 'production' ? {
-    name: "io",
-    path: "/",
-    httpOnly: true,
-    sameSite: "strict",
-    secure: true
-  } : false
+  allowUpgrades: true
 });
 
-// Add connection logging
+// Add debugging
 io.engine.on("connection_error", (err) => {
-  console.log('Connection error:', err.req);
-  console.log('Error code:', err.code);
-  console.log('Error message:', err.message);
-  console.log('Error context:', err.context);
+  console.log('Connection error details:', {
+    req: err.req,
+    code: err.code,
+    message: err.message,
+    context: err.context
+  });
 });
-
 // Add this before socket.io connection handling
 io.engine.on("connection_error", (err) => {
   console.log('Connection error:', err.req);      // the request that failed
