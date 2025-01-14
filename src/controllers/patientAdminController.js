@@ -150,22 +150,46 @@ const updatePatient = async (req, res) => {
         const { email, password, profile } = req.body;
         const photoProfile = req.file?.filename;
 
+        // Parse profile data if it's a string
+        const profileData = typeof profile === 'string' ? JSON.parse(profile) : profile;
+
+        // First find the user and their profile
+        const user = await prisma.user.findUnique({
+            where: { id },
+            include: { profile: true }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
         const updateData = {
             email,
             ...(password && { password: await bcrypt.hash(password, 10) })
         };
 
-        const profileData = {
-            fullName: profile.fullName,
-            dateOfBirth: new Date(profile.dateOfBirth),
-            phoneNumber: profile.phoneNumber,
-            reminderTime: new Date(profile.reminderTime),
-            address: profile.address,
-            bloodType: profile.bloodType,
-            height: profile.height ? parseFloat(profile.height) : null,
+        // Update profile data
+        const pregnancyStartDate = new Date(profileData.pregnancyStartDate);
+        const dueDate = calculateDueDate(pregnancyStartDate);
+        const pregnancyWeek = calculatePregnancyWeek(dueDate);
+        const trimester = determinePregnancyWeek(pregnancyWeek);
+
+        const profileUpdateData = {
+            fullName: profileData.fullName,
+            dateOfBirth: new Date(profileData.dateOfBirth),
+            phoneNumber: profileData.phoneNumber,
+            reminderTime: parseTime(profileData.reminderTime),
+            address: profileData.address,
+            bloodType: profileData.bloodType,
+            height: profileData.height ? parseFloat(profileData.height) : null,
+            pregnancyStartDate,
+            dueDate,
+            pregnancyWeek,
+            trimester,
             ...(photoProfile && { photoProfile })
         };
 
+        // Perform transaction
         const result = await prisma.$transaction([
             prisma.user.update({
                 where: { id },
@@ -173,13 +197,20 @@ const updatePatient = async (req, res) => {
             }),
             prisma.pregnantProfile.update({
                 where: { userId: id },
-                data: profileData
+                data: profileUpdateData
             })
         ]);
 
-        res.json(result);
+        res.json({
+            message: 'Patient updated successfully',
+            data: result
+        });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Update patient error:', error);
+        res.status(500).json({ 
+            message: 'Failed to update patient',
+            error: error.message 
+        });
     }
 };
 

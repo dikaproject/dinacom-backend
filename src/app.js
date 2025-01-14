@@ -62,6 +62,8 @@ app.use('/api/product-category', productCategoryRoutes);
 app.use('/api/product', productRoutes);
 app.use('/api/cart', cartProductRoutes);
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/settings/doctor', require('./routes/settingsDoctor'));
+app.use('/api/webhooks/whatsapp', require('./routes/whatsapp/webhooks'));
 app.use('/api/doctor-schedules', doctorScheduleRoutes);
 app.use('/api/user-admin', userAdminRoutes);
 app.use('/api/patients-admin', patientAdminRoutes);
