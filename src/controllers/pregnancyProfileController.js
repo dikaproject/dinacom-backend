@@ -20,15 +20,21 @@ const calculatePregnancyWeek = (dueDate) => {
 };
 
 function parseTime(timeString) {
-  // Create date object in UTC
-  const date = new Date();
-  const [hour, minute] = timeString.split(':');
+  const [hours, minutes] = timeString.split(':').map(Number);
   
-  // Set UTC hours directly
-  date.setUTCHours(parseInt(hour, 10), parseInt(minute, 10), 0, 0);
+  // Create date in WIB timezone
+  const date = new Date();
+  date.setHours(hours);
+  date.setMinutes(minutes);
+  date.setSeconds(0);
+  date.setMilliseconds(0);
+  
+  // Convert to UTC by subtracting 7 hours
+  date.setHours(date.getHours() - 7);
   
   return date;
 }
+
 
 const determinePregnancyWeek = (weekNumber) => {
   if (weekNumber <= 12) return 'FIRST_TRIMESTER';

@@ -10,39 +10,41 @@ const setupCronJobs = () => {
   cron.schedule('* * * * *', async () => {
     try {
       const now = new Date();
-      const wibNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-      
-      console.log('=== Cron Job Running ===');
-      console.log(`Current WIB Time: ${wibNow.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })}`);
+      const hourUTC0 = now.getUTCHours();
+      const minuteUTC0 = now.getUTCMinutes();
 
-      // Create time window for current minute in UTC
-      const startTime = new Date();
-      startTime.setUTCMinutes(startTime.getUTCMinutes(), 0, 0);
-      
-      const endTime = new Date(startTime);
-      endTime.setUTCMinutes(endTime.getUTCMinutes() + 1);
+      console.log(`[CRON] ${now.toISOString()} Checking with UTC+0: hour=${hourUTC0}, minute=${minuteUTC0}`);
 
-      console.log(`Looking for reminders set to UTC: ${startTime.toISOString()}`);
-
-      const profiles = await prisma.pregnantProfile.findMany({
-        where: {
-          isWhatsappActive: true,
-          reminderTime: {
-            gte: startTime,
-            lt: endTime
-          },
-          OR: [
-            { lastReminderSent: null },
-            {
-              lastReminderSent: {
-                lt: new Date(startTime.setUTCHours(0, 0, 0, 0))
-              }
-            }
-          ]
-        }
+      const allProfiles = await prisma.pregnantProfile.findMany({
+        where: { isWhatsappActive: true }
       });
 
-      console.log(`Found ${profiles.length} profiles to remind`);
+      const profiles = allProfiles.filter((profile) => {
+        if (!profile.reminderTime) return false;
+
+        const reminderTime = new Date(profile.reminderTime);
+        const lastSent = profile.lastReminderSent ? new Date(profile.lastReminderSent) : null;
+
+        console.log(`[CRON] Profile: ${profile.id} | reminderTime=${reminderTime.toISOString()} | lastSent=${lastSent ? lastSent.toISOString() : 'none'}`);
+
+        // Check if current time is within 5 minutes of reminder time
+        const timeDiffMinutes = Math.abs(
+          (hourUTC0 * 60 + minuteUTC0) - 
+          (reminderTime.getUTCHours() * 60 + reminderTime.getUTCMinutes())
+        );
+
+        // Check if should send reminder (within 5 minutes of target time AND either no last sent OR different day)
+        const shouldSendReminder = 
+          timeDiffMinutes <= 5 && 
+          (!lastSent || 
+           lastSent.toDateString() !== now.toDateString());
+
+        console.log(`[CRON] Profile ${profile.id} timeDiff=${timeDiffMinutes}min, shouldSend=${shouldSendReminder}`);
+        
+        return shouldSendReminder;
+      });
+
+      console.log(`[CRON] Found ${profiles.length} profiles to remind`);
 
       for (const profile of profiles) {
         try {
@@ -51,12 +53,13 @@ const setupCronJobs = () => {
             where: { id: profile.id },
             data: { lastReminderSent: now }
           });
+          console.log(`[CRON] Successfully sent reminder to ${profile.id}`);
         } catch (error) {
-          console.error(`Failed to send reminder to ${profile.phoneNumber}:`, error);
+          console.error(`[CRON] Failed to send reminder to ${profile.id}:`, error);
         }
       }
     } catch (error) {
-      console.error('Cron job error:', error);
+      console.error('[CRON] Cron job error:', error);
     }
   }, {
     scheduled: true,
